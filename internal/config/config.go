@@ -16,7 +16,7 @@ type Config struct {
 func New() (*Config, error) {
 	c := &Config{}
 
-	if err := env.Parse(&c); err != nil {
+	if err := env.Parse(c); err != nil {
 		return nil, fmt.Errorf("env parse: %v", err)
 	}
 	// parse flags

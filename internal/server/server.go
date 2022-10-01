@@ -5,18 +5,19 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/sirupsen/logrus"
 	"github.com/vlad-marlo/gophermart/internal/config"
-	"github.com/vlad-marlo/gophermart/internal/storage"
+	"github.com/vlad-marlo/gophermart/internal/store"
 )
 
 type server struct {
 	chi.Router
-	store storage.Storage
+	store store.Storage
 	// don't sure that this is necessary
 	config *config.Config
 }
 
-func Start(store storage.Storage, config *config.Config) error {
+func Start(logger *logrus.Logger, store store.Storage, config *config.Config) error {
 	s := &server{
 		store:  store,
 		config: config,
