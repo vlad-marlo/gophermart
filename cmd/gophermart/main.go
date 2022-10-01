@@ -29,10 +29,9 @@ func main() {
 	}
 	logger.Debug("sucessfully init sql storage")
 	go func() {
+		logger.Debugf("starting server on %v", config.BindAddr)
 		if err := server.Start(logger, store, config); err != nil {
 			logger.Fatalf("start server: %v", err)
-		} else {
-			logger.Debugf("starting server on %v", config.BindAddr)
 		}
 	}()
 	// creating interrupt chan for accepting os signals

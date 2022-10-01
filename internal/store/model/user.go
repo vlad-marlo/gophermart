@@ -10,27 +10,30 @@ import (
 type User struct {
 	ID                string `json:"-"`
 	Login             string `json:"login"`
-	Password          string `json:"password,omitempty"`
+	Password          string `json:"password"`
 	EncryptedPassword string `json:"-"`
 }
 
 // NewUser ...
 func NewUser(login, password string) (*User, error) {
-	u := &User{Login: login, Password: password, ID: uuid.New().String()}
-	if err := u.beforeCreate(); err != nil {
+	u := &User{Login: login, Password: password}
+	if err := u.BeforeCreate(); err != nil {
 		return nil, fmt.Errorf("before create: %v", err)
 	}
 	return u, nil
 }
 
-// beforeCreate
-func (u *User) beforeCreate() error {
+// BeforeCreate
+func (u *User) BeforeCreate() error {
 	if len(u.Password) > 0 {
 		enc, err := EncryptString(u.Password)
 		if err != nil {
 			return fmt.Errorf("encrypt string: %v", err)
 		}
 		u.EncryptedPassword, u.Password = enc, ""
+	}
+	if len(u.ID) == 0 {
+		u.ID = uuid.New().String()
 	}
 	return nil
 }

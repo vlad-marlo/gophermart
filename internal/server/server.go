@@ -12,7 +12,8 @@ import (
 
 type server struct {
 	chi.Router
-	store store.Storage
+	store  store.Storage
+	logger *logrus.Logger
 	// don't sure that this is necessary
 	config *config.Config
 }
@@ -22,13 +23,16 @@ func Start(logger *logrus.Logger, store store.Storage, config *config.Config) er
 		store:  store,
 		config: config,
 		Router: chi.NewMux(),
+		logger: logger,
 	}
 	s.configureMiddlewares()
 	return http.ListenAndServe(s.config.BindAddr, s.Router)
 }
 
 func (s *server) configureMiddlewares() {
-	s.Use(middleware.Logger)
+	s.Use(s.loggerMiddleware)
 	s.Use(middleware.Recoverer)
 	s.Use(middleware.Compress(5, "text/html", "text/plain", "application/json"))
 }
+
+func (s *server) confugureRoutes() {}

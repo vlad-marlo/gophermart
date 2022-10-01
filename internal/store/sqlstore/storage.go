@@ -22,11 +22,16 @@ func New(l *logrus.Logger, c *config.Config) (store.Storage, error) {
 	if err != nil {
 		return nil, fmt.Errorf("sql open: %v", err)
 	}
+
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("ping db: %v", err)
 	}
-	ur := newUserRepository(db)
-	s := &storage{db: db, user: ur, l: l}
+
+	s := &storage{
+		db:   db,
+		user: &userRepository{db},
+		l:    l,
+	}
 	if err := s.migrate(); err != nil {
 		return nil, fmt.Errorf("migrate: %v", err)
 	}
