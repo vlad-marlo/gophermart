@@ -1,6 +1,10 @@
 package store
 
-import "github.com/vlad-marlo/gophermart/internal/store/model"
+import (
+	"context"
+
+	"github.com/vlad-marlo/gophermart/internal/store/model"
+)
 
 type (
 	Storage interface {
@@ -8,6 +12,6 @@ type (
 		Close() error
 	}
 	UserRepository interface {
-		Create(u *model.User) error
+		Create(ctx context.Context, u *model.User) error
 	}
 )
