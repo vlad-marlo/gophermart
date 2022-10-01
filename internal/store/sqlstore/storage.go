@@ -26,7 +26,12 @@ func New(l *logrus.Logger, c *config.Config) (store.Storage, error) {
 		return nil, fmt.Errorf("ping db: %v", err)
 	}
 	ur := newUserRepository(db)
-	return &storage{db: db, user: ur, l: l}, nil
+	s := &storage{db: db, user: ur, l: l}
+	if err := s.migrate(); err != nil {
+		return nil, fmt.Errorf("migrate: %v", err)
+	}
+	l.Debug("sucessfully migrated")
+	return s, nil
 }
 
 // User ...
