@@ -1,6 +1,7 @@
 package sqlstore
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -23,7 +24,7 @@ func (s *storage) migrate() error {
 		return fmt.Errorf("with db instance: %v", err)
 	}
 
-	if err = m.Up(); err != nil {
+	if err = m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("up: %v", err)
 	}
 	return nil
