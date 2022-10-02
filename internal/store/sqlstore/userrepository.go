@@ -34,7 +34,7 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 	return nil
 }
 
-// GetIDByLoginAndPass ...
+// GetByLogin GetIDByLoginAndPass ...
 func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.User, error) {
 	u := &model.User{}
 

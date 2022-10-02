@@ -19,8 +19,7 @@ type (
 )
 
 const (
-	UserIDCookieName                       = "user"
-	UserCTXName      cookieUserIDValueType = "user_in_context"
+	UserIDCookieName = "user"
 )
 
 var encryptor *Encryptor

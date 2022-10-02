@@ -3,7 +3,6 @@ package model
 import (
 	"fmt"
 
-	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -15,15 +14,8 @@ type User struct {
 }
 
 // NewUser ...
-func NewUser(login, password string) (*User, error) {
-	u := &User{Login: login, Password: password}
-	if err := u.BeforeCreate(); err != nil {
-		return nil, fmt.Errorf("before create: %v", err)
-	}
-	return u, nil
-}
 
-// BeforeCreate
+// BeforeCreate ...
 func (u *User) BeforeCreate() error {
 	if len(u.Password) > 0 {
 		enc, err := EncryptString(u.Password)
@@ -32,13 +24,10 @@ func (u *User) BeforeCreate() error {
 		}
 		u.EncryptedPassword, u.Password = enc, ""
 	}
-	if len(u.ID) == 0 {
-		u.ID = uuid.New()
-	}
 	return nil
 }
 
-// encryptString ...
+// EncryptString encryptString ...
 func EncryptString(s string) (string, error) {
 	b, err := bcrypt.GenerateFromPassword([]byte(s), bcrypt.MinCost)
 	if err != nil {

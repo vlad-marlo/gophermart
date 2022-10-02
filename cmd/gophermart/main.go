@@ -16,29 +16,32 @@ func main() {
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.JSONFormatter{})
 	logger.SetLevel(logrus.DebugLevel)
-	logger.Debug("sucessfully init logger")
+	logger.Debug("successfully init logger")
 
-	// init config
-	config, err := config.New()
+	// init cfg
+	cfg, err := config.New()
 	if err != nil {
 		logger.Fatalf("new config: %v", err)
 	}
-	store, err := sqlstore.New(logger, config)
+
+	store, err := sqlstore.New(logger, cfg)
 	if err != nil {
 		logger.Fatalf("new sql store: %v", err)
 	}
-	logger.Debug("sucessfully init sql storage")
+	logger.Debug("successfully init sql storage")
+
 	go func() {
-		logger.Debugf("starting server on %v", config.BindAddr)
-		if err := server.Start(logger, store, config); err != nil {
+		logger.Debugf("starting server on %v", cfg.BindAddr)
+		if err := server.Start(logger, store, cfg); err != nil {
 			logger.Fatalf("start server: %v", err)
 		}
 	}()
+
 	// creating interrupt chan for accepting os signals
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
-	// gracefull shut down
+	// gracefully shut down
 	sig := <-interrupt
 	switch sig {
 	case os.Interrupt:

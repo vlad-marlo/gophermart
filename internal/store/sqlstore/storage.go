@@ -35,7 +35,7 @@ func New(l *logrus.Logger, c *config.Config) (store.Storage, error) {
 	if err := s.migrate(); err != nil {
 		return nil, fmt.Errorf("migrate: %v", err)
 	}
-	l.Debug("sucessfully migrated")
+	l.Debug("successfully migrated")
 	return s, nil
 }
 
@@ -44,7 +44,7 @@ func (s *storage) User() store.UserRepository {
 	return s.user
 }
 
-// Close
+// Close ...
 func (s *storage) Close() error {
 	return s.db.Close()
 }
