@@ -5,22 +5,26 @@ import (
 	"time"
 )
 
-type loggerRespWriter struct {
-	code int
+type loggingResponseWriter struct {
 	http.ResponseWriter
+	statusCode int
 }
 
-func (l loggerRespWriter) WriteHeader(code int) {
-	l.code = code
-	l.WriteHeader(code)
+func newLoggingResponseWriter(w http.ResponseWriter) *loggingResponseWriter {
+	return &loggingResponseWriter{w, http.StatusOK}
 }
 
-func (s *server) loggerMiddleware(next http.Handler) http.Handler {
+func (lrw *loggingResponseWriter) WriteHeader(code int) {
+	lrw.statusCode = code
+	lrw.ResponseWriter.WriteHeader(code)
+}
+
+func (s *server) logRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		wr := loggerRespWriter{200, w}
+		lrw := newLoggingResponseWriter(w)
 		start := time.Now()
-		next.ServeHTTP(wr, r)
+		next.ServeHTTP(lrw, r)
 		dur := time.Now().Sub(start)
-		s.logger.Printf("%s finished with code %d by %d", r.URL.String(), wr.code, dur)
+		s.logger.Infof("%s to %s, finished with code %d %s, duration %s", r.Method, r.URL.Path, lrw.statusCode, http.StatusText(lrw.statusCode), dur)
 	})
 }

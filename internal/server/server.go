@@ -26,13 +26,19 @@ func Start(logger *logrus.Logger, store store.Storage, config *config.Config) er
 		logger: logger,
 	}
 	s.configureMiddlewares()
+	s.configureRoutes()
 	return http.ListenAndServe(s.config.BindAddr, s.Router)
 }
 
 func (s *server) configureMiddlewares() {
-	s.Use(s.loggerMiddleware)
+	s.Use(s.logRequest)
 	s.Use(middleware.Recoverer)
 	s.Use(middleware.Compress(5, "text/html", "text/plain", "application/json"))
 }
 
-func (s *server) confugureRoutes() {}
+func (s *server) configureRoutes() {
+	s.Route("/api/user", func(r chi.Router) {
+		r.Post("/register", s.handleAuthRegister())
+		r.Post("/login", s.handleAuthLogin())
+	})
+}

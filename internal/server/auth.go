@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -91,14 +90,14 @@ func (e *Encryptor) DecodeUUID(uuid string, to *string) error {
 	return nil
 }
 
-// AuthMiddleware ...
-func (s *server) AuthMiddleware(next http.Handler) http.Handler {
+// CheckAuthMiddleware ...
+func (s *server) CheckAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var rawUserID string
 
 		if err := NewEncryptor(); err != nil {
 			s.logger.Warnf("new encryptor: %v", err)
-			w.WriteHeader(http.StatusUnauthorized)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
@@ -117,11 +116,14 @@ func (s *server) AuthMiddleware(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), UserCTXName, rawUserID)))
+		next.ServeHTTP(w, r)
 	})
 }
 
 func (s *server) authentificate(w http.ResponseWriter, id string) {
+	if err := NewEncryptor(); err != nil {
+		s.logger.Warnf("auth: new encryptor: %s", err)
+	}
 	encoded := encryptor.EncodeUUID(id)
 	c := &http.Cookie{
 		Name:  UserIDCookieName,
@@ -129,4 +131,18 @@ func (s *server) authentificate(w http.ResponseWriter, id string) {
 		Path:  "/",
 	}
 	http.SetCookie(w, c)
+}
+
+func (s *server) getUserIDFromRequest(r *http.Request) (userID string, err error) {
+	user, err := r.Cookie(UserIDCookieName)
+	if err != nil {
+		return "", fmt.Errorf("get cookie from req: %v", err)
+	}
+	if err := NewEncryptor(); err != nil {
+		return "", fmt.Errorf("new encryptor: %v", err)
+	}
+	if err := encryptor.DecodeUUID(user.Value, &userID); err != nil {
+		return "", fmt.Errorf("decode: %v", err)
+	}
+	return
 }

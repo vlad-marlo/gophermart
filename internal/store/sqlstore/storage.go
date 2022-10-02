@@ -29,7 +29,7 @@ func New(l *logrus.Logger, c *config.Config) (store.Storage, error) {
 
 	s := &storage{
 		db:   db,
-		user: &userRepository{db},
+		user: &userRepository{db, l},
 		l:    l,
 	}
 	if err := s.migrate(); err != nil {
