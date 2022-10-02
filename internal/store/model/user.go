@@ -8,7 +8,7 @@ import (
 )
 
 type User struct {
-	ID                string `json:"-"`
+	ID                int    `json:"-"`
 	Login             string `json:"login"`
 	Password          string `json:"password"`
 	EncryptedPassword string `json:"-"`
@@ -33,7 +33,7 @@ func (u *User) BeforeCreate() error {
 		u.EncryptedPassword, u.Password = enc, ""
 	}
 	if len(u.ID) == 0 {
-		u.ID = uuid.New().String()
+		u.ID = uuid.New()
 	}
 	return nil
 }

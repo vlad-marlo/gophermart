@@ -26,12 +26,10 @@ func (s *server) handleAuthRegister() http.HandlerFunc {
 			s.error(w, fmt.Errorf("json unmarshal: %v", err), http.StatusBadRequest)
 			return
 		}
-		s.logger.Debugf("%s - %s - %s", u.Login, u.Password, u.EncryptedPassword)
 		if err := u.BeforeCreate(); err != nil {
 			s.error(w, fmt.Errorf("user: before create: %v", err), http.StatusInternalServerError)
 			return
 		}
-		s.logger.Debugf("%s - %s - %s", u.Login, u.Password, u.EncryptedPassword)
 		if err := s.store.User().Create(r.Context(), u); err != nil {
 			if errors.Is(err, sqlstore.ErrLoginAlreadyInUse) {
 				w.WriteHeader(http.StatusConflict)
@@ -60,7 +58,6 @@ func (s *server) handleAuthLogin() http.HandlerFunc {
 			s.error(w, fmt.Errorf("login: uncorrect request data: %v", err), http.StatusBadRequest)
 			return
 		}
-		s.logger.Debugf("%v", req.EncryptedPassword)
 
 		user, err := s.store.User().GetByLogin(r.Context(), req.Login)
 		if err != nil {

@@ -21,7 +21,7 @@ type userRepository struct {
 func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 	if _, err := r.db.ExecContext(
 		ctx,
-		`INSERT INTO users(user_id, login, password) VALUES ($1, $2, $3);`,
+		`INSERT INTO users(id, login, password) VALUES ($1, $2, $3);`,
 		u.ID,
 		u.Login,
 		u.EncryptedPassword,
@@ -41,7 +41,7 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 	// we don't need url model, just id
 	rows, err := r.db.QueryContext(
 		ctx,
-		`SELECT user_id, password FROM users WHERE login=$1;`,
+		`SELECT id, password FROM users WHERE login=$1;`,
 		login,
 	)
 	defer rows.Close()
@@ -63,11 +63,11 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 }
 
 // ExistsWithID ...
-func (r *userRepository) ExistsWithID(ctx context.Context, id string) (bool, error) {
+func (r *userRepository) ExistsWithID(ctx context.Context, id int) (bool, error) {
 	var res bool
 	if err := r.db.QueryRowContext(
 		ctx,
-		`SELECT EXISTS(SELECT * FROM urls WHERE user_id=$1);`,
+		`SELECT EXISTS(SELECT * FROM urls WHERE id=$1);`,
 		id,
 	).Scan(&res); err != nil {
 		return false, fmt.Errorf("query: %v", err)

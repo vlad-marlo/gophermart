@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
+	"strconv"
 )
 
 type (
@@ -109,7 +110,12 @@ func (s *server) CheckAuthMiddleware(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		if ok, err := s.store.User().ExistsWithID(r.Context(), rawUserID); err != nil {
+		intID, err := strconv.Atoi(rawUserID)
+		if err != nil {
+			s.error(w, fmt.Errorf("parse id from cookie: %v", err), http.StatusUnauthorized)
+			return
+		}
+		if ok, err := s.store.User().ExistsWithID(r.Context(), intID); err != nil {
 			s.error(w, fmt.Errorf("auth middleware: exists with id: %v", err), http.StatusInternalServerError)
 			return
 		} else if !ok {
@@ -120,11 +126,11 @@ func (s *server) CheckAuthMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func (s *server) authentificate(w http.ResponseWriter, id string) {
+func (s *server) authentificate(w http.ResponseWriter, id int) {
 	if err := NewEncryptor(); err != nil {
 		s.logger.Warnf("auth: new encryptor: %s", err)
 	}
-	encoded := encryptor.EncodeUUID(id)
+	encoded := encryptor.EncodeUUID(fmt.Sprint(id))
 	c := &http.Cookie{
 		Name:  UserIDCookieName,
 		Value: encoded,
