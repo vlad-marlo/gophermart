@@ -68,3 +68,17 @@ func (r *userRepository) GetIDByLoginAndPass(ctx context.Context, login, pass st
 
 	return id, nil
 }
+
+func (r *userRepository) ExistsWithID(ctx context.Context, id string) (res bool, err error) {
+	if err := r.db.QueryRowContext(
+		ctx,
+		`SELECT 
+			CASE WHEN COUNT(*) == 0 THEN false
+			CASE WHEN COUNT(*) == 1 THEN true
+		FROM urls WHERE id=$1`,
+		id,
+	).Scan(&res); err != nil {
+		return false, fmt.Errorf("scan: %v", err)
+	}
+	return res, nil
+}

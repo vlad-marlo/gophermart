@@ -37,6 +37,7 @@ func (s *server) handleAuthRegister() http.HandlerFunc {
 			}
 		}
 		s.authentificate(w, u.ID)
+		w.WriteHeader(http.StatusOK)
 	}
 }
 
@@ -66,5 +67,6 @@ func (s *server) handleAuthLogin() http.HandlerFunc {
 			}
 		}
 		s.authentificate(w, id)
+		w.WriteHeader(http.StatusOK)
 	}
 }
