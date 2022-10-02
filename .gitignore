@@ -4,7 +4,6 @@
 *.dll
 *.so
 *.dylib
-main
 
 # Test binary, built with `go test -c`
 *.test
@@ -15,8 +14,8 @@ main
 # Binaries
 cmd/gophermart/main
 cmd/gophermart/gophermart
-./gophermart
-./main
+gophermart
+main
 
 # Dependency directories (remove the comment below to include it)
 vendor/
