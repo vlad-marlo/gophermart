@@ -60,13 +60,9 @@ func (s *server) handleAuthLogin() http.HandlerFunc {
 			s.error(w, fmt.Errorf("login: uncorrect request data: %v", err), http.StatusBadRequest)
 			return
 		}
-		if err := req.BeforeCreate(); err != nil {
-			s.error(w, fmt.Errorf("login: before create: %v", err), http.StatusInternalServerError)
-			return
-		}
 		s.logger.Debugf("%v", req.EncryptedPassword)
 
-		id, err := s.store.User().GetIDByLoginAndPass(r.Context(), req.Login, req.EncryptedPassword)
+		user, err := s.store.User().GetByLogin(r.Context(), req.Login)
 		if err != nil {
 			if errors.Is(err, sqlstore.ErrUncorrectLoginData) {
 				s.error(w, fmt.Errorf("login: unauthorized: %v", err), http.StatusUnauthorized)
@@ -75,7 +71,11 @@ func (s *server) handleAuthLogin() http.HandlerFunc {
 			s.error(w, err, http.StatusUnauthorized)
 			return
 		}
-		s.authentificate(w, id)
+		if err := user.ComparePassword(req.Password); err != nil {
+			s.error(w, fmt.Errorf("login: compare pass: unauthorized: %v", err), http.StatusUnauthorized)
+			return
+		}
+		s.authentificate(w, user.ID)
 		w.WriteHeader(http.StatusOK)
 	}
 }

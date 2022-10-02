@@ -35,37 +35,31 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 }
 
 // GetIDByLoginAndPass ...
-func (r *userRepository) GetIDByLoginAndPass(ctx context.Context, login, pass string) (string, error) {
-	var id string
-
-	enc, err := model.EncryptString(pass)
-	if err != nil {
-		return "", fmt.Errorf("encrypt pass: %v", err)
-	}
+func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.User, error) {
+	u := &model.User{}
 
 	// we don't need url model, just id
 	rows, err := r.db.QueryContext(
 		ctx,
-		`SELECT user_id FROM users WHERE login=$1 AND password=$2`,
+		`SELECT user_id, password FROM users WHERE login=$1;`,
 		login,
-		enc,
 	)
 	defer rows.Close()
 	if err != nil {
 		r.l.Debugf("err=%s get id by login=%s", err, login)
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", ErrUncorrectLoginData
+			return nil, ErrUncorrectLoginData
 		}
-		return "", fmt.Errorf("query context: %v", err)
+		return nil, fmt.Errorf("query context: %v", err)
 	}
 
 	if rows.Next() {
-		if err := rows.Scan(&id); err != nil {
-			return "", fmt.Errorf("scan: %v", err)
+		if err := rows.Scan(&u.ID, &u.EncryptedPassword); err != nil {
+			return nil, fmt.Errorf("scan: %v", err)
 		}
-		return id, nil
+		return u, nil
 	}
-	return "", ErrUncorrectLoginData
+	return nil, ErrUncorrectLoginData
 }
 
 // ExistsWithID ...

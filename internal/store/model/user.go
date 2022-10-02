@@ -46,3 +46,7 @@ func EncryptString(s string) (string, error) {
 	}
 	return string(b), nil
 }
+
+func (u *User) ComparePassword(password string) error {
+	return bcrypt.CompareHashAndPassword([]byte(u.EncryptedPassword), []byte(password))
+}
