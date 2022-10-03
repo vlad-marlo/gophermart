@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/vlad-marlo/gophermart/internal/pkg/utils"
 	"net/http"
 )
 
@@ -10,12 +11,8 @@ func (s *server) recoverMiddleware(next http.Handler) http.Handler {
 		defer func() {
 			if rvr := recover(); rvr != nil && rvr != http.ErrAbortHandler {
 
-				id, err := GetIDFromContext(r.Context())
-				if err != nil {
-					s.logger.Debugf("recover covered: %v", rvr)
-					return
-				}
-				s.logger.Tracef("%s | recover covered: %v", id, rvr)
+				id := utils.GetIDFromContext(r.Context())
+				s.logger.WithField("request_id", id).Tracef("recover covered: %v", rvr)
 
 				w.WriteHeader(http.StatusInternalServerError)
 			}

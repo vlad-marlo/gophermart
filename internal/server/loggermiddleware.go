@@ -1,9 +1,9 @@
 package server
 
 import (
-	"context"
-	"errors"
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
+	"github.com/vlad-marlo/gophermart/internal/pkg/utils"
 	"net/http"
 	"time"
 )
@@ -13,16 +13,6 @@ type (
 		http.ResponseWriter
 		statusCode int
 	}
-	// custom type for
-	requestIDCtx string
-)
-
-var (
-	ErrContextDoesntStoreID = errors.New("can't get id from context")
-)
-
-const (
-	requestIDCtxField requestIDCtx = "id"
 )
 
 func newLoggingResponseWriter(w http.ResponseWriter) *loggingResponseWriter {
@@ -36,26 +26,20 @@ func (lrw *loggingResponseWriter) WriteHeader(code int) {
 
 func (s *server) logRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		lrw := newLoggingResponseWriter(w)
-
-		// request ID
 		id := uuid.New().String()
-		ctx := context.WithValue(r.Context(), requestIDCtxField, id)
-
+		lrw := newLoggingResponseWriter(w)
 		// start check time
 		start := time.Now()
-		next.ServeHTTP(lrw, r.WithContext(ctx))
+		next.ServeHTTP(lrw, r.WithContext(utils.GetCtxWithID(r.Context(), id)))
 		dur := time.Now().Sub(start)
 
 		// log request
-		s.logger.Tracef("%s | %s to %s, finished with code %d %s, duration %s", id, r.Method, r.URL.Path, lrw.statusCode, http.StatusText(lrw.statusCode), dur)
+		s.logger.WithFields(logrus.Fields{
+			"method":     r.Method,
+			"url":        r.URL.Path,
+			"duration":   dur,
+			"code":       lrw.statusCode,
+			"request_id": id,
+		}).Trace(http.StatusText(lrw.statusCode))
 	})
-}
-
-func GetIDFromContext(ctx context.Context) (string, error) {
-	id := ctx.Value(requestIDCtxField)
-	if v, ok := id.(string); ok {
-		return v, nil
-	}
-	return "", ErrContextDoesntStoreID
 }

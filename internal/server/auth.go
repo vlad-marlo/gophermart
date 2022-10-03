@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"github.com/vlad-marlo/gophermart/internal/pkg/utils"
 	"github.com/vlad-marlo/gophermart/internal/store/sqlstore"
 	"net/http"
 	"strconv"
@@ -20,7 +21,9 @@ type (
 )
 
 const (
-	UserIDCookieName = "user"
+	UserIDCookieName     = "user"
+	RequestIDLoggerField = "request_id"
+	UserIDLoggerField    = "user_id"
 )
 
 var encryptor *Encryptor
@@ -29,10 +32,6 @@ var encryptor *Encryptor
 func init() {
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.JSONFormatter{})
-
-	if encryptor != nil {
-		return
-	}
 
 	key, err := generateRandom(aes.BlockSize)
 	if err != nil {
@@ -101,27 +100,33 @@ func (s *server) CheckAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var rawUserID string
 
+		// check request id from request
+		ctx := r.Context()
+		id := utils.GetIDFromContext(ctx)
+
 		if user, err := r.Cookie(UserIDCookieName); err != nil {
+
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		} else if err = encryptor.Decode(user.Value, &rawUserID); err != nil {
-			s.logger.Warnf("decode: %v", err)
+
+			s.logger.WithField(RequestIDLoggerField, id).Warnf("decode: %v", err)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
+
 		intID, err := strconv.Atoi(rawUserID)
 		if err != nil {
-			s.error(w, fmt.Errorf("parse id from cookie: %v", err), sqlstore.ErrUncorrectLoginData.Error(), http.StatusUnauthorized)
+			s.error(w, fmt.Errorf("parse id from cookie: %v", err), sqlstore.ErrUncorrectLoginData.Error(), id, http.StatusUnauthorized)
 			return
 		}
-		if ok, err := s.store.User().ExistsWithID(r.Context(), intID); err != nil {
-			s.error(w, fmt.Errorf("auth middleware: exists with id: %v", err), InternalErrMsg, http.StatusInternalServerError)
-			return
-		} else if !ok {
+
+		if ok := s.store.User().ExistsWithID(r.Context(), intID); !ok {
+			s.error(w, fmt.Errorf("auth middleware: exists with id: %v", err), InternalErrMsg, id, http.StatusInternalServerError)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 

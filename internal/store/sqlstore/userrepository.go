@@ -5,11 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/vlad-marlo/gophermart/internal/model"
-
 	"github.com/jackc/pgerrcode"
 	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
+	"github.com/vlad-marlo/gophermart/internal/model"
 )
 
 type userRepository struct {
@@ -69,13 +68,20 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 // ExistsWithID ...
 func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 	var res bool
+
+	query := `SELECT EXISTS(SELECT * FROM users WHERE id=$1);`
 	if err := r.db.QueryRowContext(
 		ctx,
-		`SELECT EXISTS(SELECT * FROM users WHERE id=$1);`,
+		query,
 		id,
 	).Scan(&res); err != nil {
-		r.l.Warnf("user repo: exists with id: scan: %v", err)
+		r.l.WithFields(logrus.Fields{
+			"sql": query,
+		}).Warnf("user repo: exists with id: scan: %v", err)
 		return false
 	}
+	r.l.WithFields(logrus.Fields{
+		"sql": query,
+	}).Tracef("succesful get exist user or not")
 	return res
 }
