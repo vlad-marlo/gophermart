@@ -2,8 +2,7 @@ package store
 
 import (
 	"context"
-
-	"github.com/vlad-marlo/gophermart/internal/store/model"
+	"github.com/vlad-marlo/gophermart/internal/model"
 )
 
 type (

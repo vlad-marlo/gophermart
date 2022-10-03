@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"github.com/vlad-marlo/gophermart/internal/store/sqlstore"
 	"net/http"
 	"strconv"
 )
@@ -111,11 +112,11 @@ func (s *server) CheckAuthMiddleware(next http.Handler) http.Handler {
 		}
 		intID, err := strconv.Atoi(rawUserID)
 		if err != nil {
-			s.error(w, fmt.Errorf("parse id from cookie: %v", err), http.StatusUnauthorized)
+			s.error(w, fmt.Errorf("parse id from cookie: %v", err), sqlstore.ErrUncorrectLoginData.Error(), http.StatusUnauthorized)
 			return
 		}
 		if ok, err := s.store.User().ExistsWithID(r.Context(), intID); err != nil {
-			s.error(w, fmt.Errorf("auth middleware: exists with id: %v", err), http.StatusInternalServerError)
+			s.error(w, fmt.Errorf("auth middleware: exists with id: %v", err), InternalErrMsg, http.StatusInternalServerError)
 			return
 		} else if !ok {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -125,7 +126,7 @@ func (s *server) CheckAuthMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func (s *server) authentificate(w http.ResponseWriter, id int) {
+func (s *server) authenticate(w http.ResponseWriter, id int) {
 	if err := NewEncryptor(); err != nil {
 		s.logger.Warnf("auth: new encryptor: %s", err)
 	}

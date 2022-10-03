@@ -35,7 +35,7 @@ func New(l *logrus.Logger, c *config.Config) (store.Storage, error) {
 	if err := s.migrate(); err != nil {
 		return nil, fmt.Errorf("migrate: %v", err)
 	}
-	l.Debug("successfully migrated")
+	l.Info("successfully migrated")
 	return s, nil
 }
 

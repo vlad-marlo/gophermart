@@ -16,7 +16,7 @@ func main() {
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.JSONFormatter{})
 	logger.SetLevel(logrus.DebugLevel)
-	logger.Debug("successfully init logger")
+	logger.Info("successfully init logger")
 
 	// init cfg
 	cfg, err := config.New()
@@ -28,10 +28,10 @@ func main() {
 	if err != nil {
 		logger.Fatalf("new sql store: %v", err)
 	}
-	logger.Debug("successfully init sql storage")
+	logger.Info("successfully init sql storage")
 
 	go func() {
-		logger.Debugf("starting server on %v", cfg.BindAddr)
+		logger.Infof("starting server on %v", cfg.BindAddr)
 		if err := server.Start(logger, store, cfg); err != nil {
 			logger.Fatalf("start server: %v", err)
 		}
@@ -53,4 +53,6 @@ func main() {
 	if err := store.Close(); err != nil {
 		logger.Fatalf("store: close: %v", err)
 	}
+	logger.Info("storage was closed successful")
+	logger.Info("server was successful shutted down")
 }

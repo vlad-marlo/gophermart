@@ -5,11 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/vlad-marlo/gophermart/internal/model"
 
 	"github.com/jackc/pgerrcode"
 	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
-	"github.com/vlad-marlo/gophermart/internal/store/model"
 )
 
 type userRepository struct {
