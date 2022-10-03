@@ -32,6 +32,7 @@ func Start(logger *logrus.Logger, store store.Storage, config *config.Config) er
 
 func (s *server) configureMiddlewares() {
 	s.Use(s.logRequest)
+
 	s.Use(middleware.Recoverer)
 	s.Use(middleware.Compress(5, "text/html", "text/plain", "application/json"))
 }

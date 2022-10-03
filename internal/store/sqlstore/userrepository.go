@@ -36,7 +36,7 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 
 // GetByLogin GetIDByLoginAndPass ...
 func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.User, error) {
-	u := &model.User{}
+	u := &model.User{Login: login}
 
 	// we don't need url model, just id
 	rows, err := r.db.QueryContext(
@@ -44,9 +44,13 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 		`SELECT id, password FROM users WHERE login=$1;`,
 		login,
 	)
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			r.l.Warnf("user repo: get by login: rows close: %v", err)
+		}
+	}()
 	if err != nil {
-		r.l.Debugf("err=%s get id by login=%s", err, login)
+		r.l.Tracef("err=%s get id by login=%s", err, login)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrUncorrectLoginData
 		}
@@ -63,14 +67,15 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 }
 
 // ExistsWithID ...
-func (r *userRepository) ExistsWithID(ctx context.Context, id int) (bool, error) {
+func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 	var res bool
 	if err := r.db.QueryRowContext(
 		ctx,
-		`SELECT EXISTS(SELECT * FROM urls WHERE id=$1);`,
+		`SELECT EXISTS(SELECT * FROM users WHERE id=$1);`,
 		id,
 	).Scan(&res); err != nil {
-		return false, fmt.Errorf("query: %v", err)
+		r.l.Warnf("user repo: exists with id: scan: %v", err)
+		return false
 	}
-	return res, nil
+	return res
 }
