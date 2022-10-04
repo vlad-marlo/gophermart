@@ -1,9 +1,9 @@
 package server
 
 import (
-	"github.com/google/uuid"
+	"fmt"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/sirupsen/logrus"
-	"github.com/vlad-marlo/gophermart/internal/pkg/utils"
 	"net/http"
 	"time"
 )
@@ -26,18 +26,18 @@ func (lrw *loggingResponseWriter) WriteHeader(code int) {
 
 func (s *server) logRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id := uuid.New().String()
+		id := middleware.GetReqID(r.Context())
 		lrw := newLoggingResponseWriter(w)
 		// start check time
 		start := time.Now()
-		next.ServeHTTP(lrw, r.WithContext(utils.GetCtxWithID(r.Context(), id)))
+		next.ServeHTTP(lrw, r)
 		dur := time.Now().Sub(start)
 
 		// log request
 		s.logger.WithFields(logrus.Fields{
 			"method":     r.Method,
 			"url":        r.URL.Path,
-			"duration":   dur,
+			"duration":   fmt.Sprint(dur),
 			"code":       lrw.statusCode,
 			"request_id": id,
 		}).Trace(http.StatusText(lrw.statusCode))

@@ -15,7 +15,7 @@ func main() {
 	// init logger
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.JSONFormatter{})
-	logger.SetLevel(logrus.DebugLevel)
+	logger.SetLevel(logrus.TraceLevel)
 	logger.Info("successfully init logger")
 
 	// init cfg

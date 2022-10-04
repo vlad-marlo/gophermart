@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/sirupsen/logrus"
 	"github.com/vlad-marlo/gophermart/internal/model"
-	"github.com/vlad-marlo/gophermart/internal/pkg/utils"
 	"io"
 	"net/http"
 
@@ -21,7 +21,7 @@ const (
 func (s *server) handleAuthRegister() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var u *model.User
-		id := utils.GetIDFromContext(r.Context())
+		id := middleware.GetReqID(r.Context())
 
 		defer func() {
 			if err := r.Body.Close(); err != nil {
@@ -54,8 +54,7 @@ func (s *server) handleAuthRegister() http.HandlerFunc {
 		}
 
 		s.logger.WithFields(logrus.Fields{
-			RequestIDLoggerField: id,
-			UserIDLoggerField:    u.ID,
+			UserIDLoggerField: u.ID,
 		}).Trace("successful authenticated")
 
 		s.authenticate(w, u.ID)
@@ -66,8 +65,7 @@ func (s *server) handleAuthRegister() http.HandlerFunc {
 func (s *server) handleAuthLogin() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req *model.User
-
-		id := utils.GetIDFromContext(r.Context())
+		id := middleware.GetReqID(r.Context())
 
 		defer func() {
 			if err := r.Body.Close(); err != nil {
@@ -96,8 +94,7 @@ func (s *server) handleAuthLogin() http.HandlerFunc {
 		}
 
 		s.logger.WithFields(logrus.Fields{
-			RequestIDLoggerField: id,
-			UserIDLoggerField:    user.ID,
+			UserIDLoggerField: user.ID,
 		}).Trace("successful authenticated")
 
 		s.authenticate(w, user.ID)

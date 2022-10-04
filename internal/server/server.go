@@ -31,6 +31,8 @@ func Start(logger *logrus.Logger, store store.Storage, config *config.Config) er
 }
 
 func (s *server) configureMiddlewares() {
+
+	s.Use(middleware.RequestID)
 	s.Use(s.logRequest)
 
 	s.Use(middleware.Recoverer)

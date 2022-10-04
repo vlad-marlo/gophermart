@@ -6,8 +6,8 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/sirupsen/logrus"
-	"github.com/vlad-marlo/gophermart/internal/pkg/utils"
 	"github.com/vlad-marlo/gophermart/internal/store/sqlstore"
 	"net/http"
 	"strconv"
@@ -101,8 +101,7 @@ func (s *server) CheckAuthMiddleware(next http.Handler) http.Handler {
 		var rawUserID string
 
 		// check request id from request
-		ctx := r.Context()
-		id := utils.GetIDFromContext(ctx)
+		id := middleware.GetReqID(r.Context())
 
 		if user, err := r.Cookie(UserIDCookieName); err != nil {
 
@@ -126,7 +125,7 @@ func (s *server) CheckAuthMiddleware(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(ctx))
+		next.ServeHTTP(w, r)
 	})
 }
 
