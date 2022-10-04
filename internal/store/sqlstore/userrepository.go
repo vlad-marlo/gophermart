@@ -10,11 +10,12 @@ import (
 	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"github.com/vlad-marlo/gophermart/internal/model"
+	"github.com/vlad-marlo/gophermart/internal/pkg/logger"
 )
 
 type userRepository struct {
 	db *sql.DB
-	l  *logrus.Logger
+	l  logger.Logger
 }
 
 // Create ...

@@ -1,11 +1,11 @@
 package server
 
 import (
+	"github.com/vlad-marlo/gophermart/internal/pkg/logger"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/sirupsen/logrus"
 	"github.com/vlad-marlo/gophermart/internal/config"
 	"github.com/vlad-marlo/gophermart/internal/store"
 )
@@ -13,17 +13,17 @@ import (
 type server struct {
 	chi.Router
 	store  store.Storage
-	logger *logrus.Logger
+	logger logger.Logger
 	// don't sure that this is necessary
 	config *config.Config
 }
 
-func Start(logger *logrus.Logger, store store.Storage, config *config.Config) error {
+func Start(l logger.Logger, store store.Storage, config *config.Config) error {
 	s := &server{
 		store:  store,
 		config: config,
 		Router: chi.NewMux(),
-		logger: logger,
+		logger: l,
 	}
 	s.configureMiddlewares()
 	s.configureRoutes()

@@ -3,9 +3,9 @@ package sqlstore
 import (
 	"database/sql"
 	"fmt"
+	"github.com/vlad-marlo/gophermart/internal/pkg/logger"
 
 	_ "github.com/lib/pq"
-	"github.com/sirupsen/logrus"
 	"github.com/vlad-marlo/gophermart/internal/config"
 	"github.com/vlad-marlo/gophermart/internal/store"
 )
@@ -13,11 +13,11 @@ import (
 type storage struct {
 	db   *sql.DB
 	user store.UserRepository
-	l    *logrus.Logger
+	l    logger.Logger
 }
 
 // New ...
-func New(l *logrus.Logger, c *config.Config) (store.Storage, error) {
+func New(l logger.Logger, c *config.Config) (store.Storage, error) {
 	db, err := sql.Open("postgres", c.DBURI)
 	if err != nil {
 		return nil, fmt.Errorf("sql open: %v", err)
