@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/sirupsen/logrus"
 	"github.com/vlad-marlo/gophermart/internal/store/sqlstore"
 	"net/http"
 	"strconv"
@@ -30,30 +29,27 @@ var encryptor *Encryptor
 
 // init ...
 func init() {
-	logger := logrus.New()
-	logger.SetFormatter(&logrus.JSONFormatter{})
-
 	key, err := generateRandom(aes.BlockSize)
 	if err != nil {
-		logger.Fatalf("generate key: %v", err)
+		panic(fmt.Sprintf("generate key: %v", err))
 		return
 	}
 
 	aesBlock, err := aes.NewCipher(key)
 	if err != nil {
-		logger.Fatalf("initialize cipher: %v", err)
+		panic(fmt.Sprintf("initialize cipher: %v", err))
 		return
 	}
 
 	aesGCM, err := cipher.NewGCM(aesBlock)
 	if err != nil {
-		logger.Fatalf("initialize GCM encryptor: %v", err)
+		panic(fmt.Sprintf("initialize GCM encryptor: %v", err))
 		return
 	}
 
 	nonce, err := generateRandom(aesGCM.NonceSize())
 	if err != nil {
-		logger.Fatalf("initialize GCM nonce: %v", err)
+		panic(fmt.Sprintf("initialize GCM nonce: %v", err))
 		return
 	}
 
@@ -61,6 +57,10 @@ func init() {
 		nonce: nonce,
 		GCM:   aesGCM,
 	}
+}
+
+func GetEncryptor() *Encryptor {
+	return encryptor
 }
 
 // generateRandom byte slice with size
@@ -137,15 +137,4 @@ func (s *server) authenticate(w http.ResponseWriter, id int) {
 		Path:  "/",
 	}
 	http.SetCookie(w, c)
-}
-
-func (s *server) getUserIDFromRequest(r *http.Request) (userID string, err error) {
-	user, err := r.Cookie(UserIDCookieName)
-	if err != nil {
-		return "", fmt.Errorf("get cookie from req: %v", err)
-	}
-	if err := encryptor.Decode(user.Value, &userID); err != nil {
-		return "", fmt.Errorf("decode: %v", err)
-	}
-	return
 }

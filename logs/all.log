@@ -2,3 +2,22 @@
 {"file":"storage.go:38","func":"github.com/vlad-marlo/gophermart/internal/store/sqlstore.New","level":"info","msg":"successfully migrated","time":"2022-10-04T18:53:50+03:00"}
 {"file":"main.go:29","func":"main.main","level":"info","msg":"successfully init sql storage","time":"2022-10-04T18:53:50+03:00"}
 {"file":"main.go:32","func":"main.main.func1","level":"info","msg":"starting server on :8000","time":"2022-10-04T18:53:50+03:00"}
+{"file":"main.go:18","func":"main.main","level":"info","msg":"successfully init logger","time":"2022-10-04T19:47:42+03:00"}
+{"file":"storage.go:38","func":"github.com/vlad-marlo/gophermart/internal/store/sqlstore.New","level":"info","msg":"successfully migrated","time":"2022-10-04T19:47:42+03:00"}
+{"file":"main.go:30","func":"main.main","level":"info","msg":"successfully init sql storage","time":"2022-10-04T19:47:42+03:00"}
+{"file":"main.go:33","func":"main.main.func1","level":"info","msg":"starting server on :8000","time":"2022-10-04T19:47:42+03:00"}
+{"file":"main.go:18","func":"main.main","level":"info","msg":"successfully init logger","time":"2022-10-04T19:49:10+03:00"}
+{"file":"storage.go:38","func":"github.com/vlad-marlo/gophermart/internal/store/sqlstore.New","level":"info","msg":"successfully migrated","time":"2022-10-04T19:49:10+03:00"}
+{"file":"main.go:30","func":"main.main","level":"info","msg":"successfully init sql storage","time":"2022-10-04T19:49:10+03:00"}
+{"file":"main.go:33","func":"main.main.func1","level":"info","msg":"starting server on :8000","time":"2022-10-04T19:49:10+03:00"}
+{"file":"main.go:18","func":"main.main","level":"info","msg":"successfully init logger","time":"2022-10-04T19:50:28+03:00"}
+{"file":"storage.go:38","func":"github.com/vlad-marlo/gophermart/internal/store/sqlstore.New","level":"info","msg":"successfully migrated","time":"2022-10-04T19:50:28+03:00"}
+{"file":"main.go:30","func":"main.main","level":"info","msg":"successfully init sql storage","time":"2022-10-04T19:50:28+03:00"}
+{"file":"main.go:33","func":"main.main.func1","level":"info","msg":"starting server on :8000","time":"2022-10-04T19:50:28+03:00"}
+{"file":"main.go:47","func":"main.main","level":"info","msg":"got interrupt signal","time":"2022-10-04T19:50:29+03:00"}
+{"file":"main.go:59","func":"main.main","level":"info","msg":"storage was closed successful","time":"2022-10-04T19:50:29+03:00"}
+{"file":"main.go:60","func":"main.main","level":"info","msg":"server was successful shut down","time":"2022-10-04T19:50:29+03:00"}
+{"file":"main.go:18","func":"main.main","level":"info","msg":"successfully init logger","time":"2022-10-04T20:00:00+03:00"}
+{"file":"storage.go:38","func":"github.com/vlad-marlo/gophermart/internal/store/sqlstore.New","level":"info","msg":"successfully migrated","time":"2022-10-04T20:00:00+03:00"}
+{"file":"main.go:31","func":"main.main","level":"info","msg":"successfully init sql storage","time":"2022-10-04T20:00:00+03:00"}
+{"file":"main.go:34","func":"main.main.func1","level":"info","msg":"starting server on :8000","time":"2022-10-04T20:00:00+03:00"}

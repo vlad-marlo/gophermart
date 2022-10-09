@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"errors"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -34,7 +35,7 @@ func init() {
 		DisableTimestamp: false,
 	}
 
-	if err := os.MkdirAll("logs", 0777); err != nil && err != os.ErrExist {
+	if err := os.Mkdir("logs", 0777); err != nil && !errors.Is(err, os.ErrExist) {
 		panic(err)
 	}
 	allFile, err := os.OpenFile("logs/all.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0777)
