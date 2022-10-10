@@ -13,8 +13,6 @@ type User struct {
 	EncryptedPassword string `json:"-"`
 }
 
-// NewUser ...
-
 // BeforeCreate ...
 func (u *User) BeforeCreate() error {
 	if len(u.Password) > 0 {

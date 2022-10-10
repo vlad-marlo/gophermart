@@ -3,6 +3,7 @@ package sqlstore
 import (
 	"database/sql"
 	"fmt"
+	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"github.com/vlad-marlo/gophermart/internal/pkg/logger"
 	"github.com/vlad-marlo/gophermart/internal/store"
@@ -31,25 +32,32 @@ func TestDB(t *testing.T, databaseURL string) (*sql.DB, func(...string)) {
 	}
 }
 
-func TestStore(con string) (store.Storage, error) {
+func TestStore(t *testing.T, con string) (store.Storage, func(...string)) {
+	t.Helper()
+
 	l := logger.Logger{Entry: logrus.NewEntry(logrus.New())}
+
 	db, err := sql.Open("postgres", con)
 	if err != nil {
-		return nil, fmt.Errorf("sql open: %v", err)
+		t.Fatalf("test store: sql open: %v", err)
 	}
 
 	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("ping db: %v", err)
+		t.Fatalf("test store: db ping: %v", err)
 	}
 
 	s := &storage{
 		db:   db,
-		user: &userRepository{db},
+		user: &userRepository{db, l},
 		l:    l,
 	}
 	if err := s.migrate(); err != nil {
-		return nil, fmt.Errorf("migrate: %v", err)
+		t.Fatalf("test store: sql migrate: %v", err)
 	}
-	l.Info("successfully migrated")
-	return s, nil
+	return s, func(tables ...string) {
+		if len(tables) > 0 {
+			_, _ = db.Exec("TRUNCATE $1 CASCADE", pq.Array(tables))
+		}
+		_ = db.Close()
+	}
 }
