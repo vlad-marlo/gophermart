@@ -10,13 +10,16 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func (s *storage) migrate() error {
+func (s *storage) migrate(source string) error {
+	if source == "" {
+		source = "file://migrations"
+	}
 	driver, err := postgres.WithInstance(s.db, &postgres.Config{})
 	if err != nil {
 		return fmt.Errorf("get driver: %v", err)
 	}
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://migrations",
+		source,
 		"postgres",
 		driver,
 	)

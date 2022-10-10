@@ -43,5 +43,12 @@ func (s *server) configureRoutes() {
 	s.Route("/api/user", func(r chi.Router) {
 		r.Post("/register", s.handleAuthRegister())
 		r.Post("/login", s.handleAuthLogin())
+		r.With(s.CheckAuthMiddleware).Route("/", func(r chi.Router) {
+			r.Post("/orders", s.handleOrdersPost())
+			r.Get("/orders", s.handleOrdersGet())
+			r.Get("/balance", s.handleBalanceGet())
+			r.Post("/balance/withdraw", s.handleBalanceWithdrawPost())
+			r.Get("/balance/withdrawals", s.handleGetAllWithdraws())
+		})
 	})
 }

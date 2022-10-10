@@ -15,7 +15,6 @@ import (
 func main() {
 	// init logger
 	l := logger.GetLogger()
-	l.Info("successfully init logger")
 
 	// init cfg
 	cfg, err := config.New()
@@ -28,7 +27,6 @@ func main() {
 	if err != nil {
 		l.Panicf("new sql store: %v", err)
 	}
-	l.Info("successfully init sql storage")
 
 	go func() {
 		l.Infof("starting server on %v", cfg.BindAddr)
@@ -57,6 +55,5 @@ func main() {
 	if err := store.Close(); err != nil {
 		l.Panicf("store: close: %v", err)
 	}
-	l.Info("storage was closed successful")
-	l.Info("server was successful shut down")
+	l.Info("server was closed successful")
 }

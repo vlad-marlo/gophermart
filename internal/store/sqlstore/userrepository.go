@@ -5,13 +5,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgerrcode"
 	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"github.com/vlad-marlo/gophermart/internal/model"
 	"github.com/vlad-marlo/gophermart/internal/pkg/logger"
-	"strings"
 )
 
 type userRepository struct {
@@ -21,7 +22,7 @@ type userRepository struct {
 
 // debugQuery ...
 func debugQuery(q string) string {
-	return strings.ReplaceAll(strings.ReplaceAll(q, "\t", ""), "\n", " ")
+	return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(q, "\t", " "), "\n", " "), "  ", " ")
 }
 
 // pgError checks err implements pq error or not. If implements then returns error with postgres format or returns error

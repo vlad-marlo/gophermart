@@ -10,13 +10,16 @@ import (
 )
 
 func TestUserRepository_Create(t *testing.T) {
-	db, teardown := sqlstore.TestStore(t, conStr)
+	store, teardown := sqlstore.TestStore(t, conStr)
 	defer teardown("users")
 	u := model.TestUser(t)
-	require.NoError(t, db.User().Create(context.TODO(), u))
-	u1, err := db.User().GetByLogin(context.TODO(), u.Login)
+	require.NoError(t, store.User().Create(context.TODO(), u))
+	u1, err := store.User().GetByLogin(context.TODO(), u.Login)
 	require.NoError(t, err)
 	if u.Login != u1.Login || u1.ID == 0 {
 		t.Fatalf("something went wrong")
+	}
+	if ok := store.User().ExistsWithID(context.TODO(), u.ID); !ok {
+		t.Fatal("user must exist")
 	}
 }

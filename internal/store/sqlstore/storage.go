@@ -3,6 +3,7 @@ package sqlstore
 import (
 	"database/sql"
 	"fmt"
+
 	"github.com/vlad-marlo/gophermart/internal/pkg/logger"
 
 	_ "github.com/lib/pq"
@@ -32,10 +33,9 @@ func New(l logger.Logger, c *config.Config) (store.Storage, error) {
 		user: &userRepository{db, l},
 		l:    l,
 	}
-	if err := s.migrate(); err != nil {
+	if err := s.migrate(""); err != nil {
 		return nil, fmt.Errorf("migrate: %v", err)
 	}
-	l.Info("successfully migrated")
 	return s, nil
 }
 

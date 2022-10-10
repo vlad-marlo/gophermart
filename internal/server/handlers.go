@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/sirupsen/logrus"
 	"github.com/vlad-marlo/gophermart/internal/model"
-	"io"
-	"net/http"
 
 	"github.com/vlad-marlo/gophermart/internal/store/sqlstore"
 )
@@ -72,6 +73,7 @@ func (s *server) handleAuthLogin() http.HandlerFunc {
 				s.logger.WithField(RequestIDLoggerField, id).Tracef("%v | handle auth login: close body: %v", id, err)
 			}
 		}()
+
 		data, err := io.ReadAll(r.Body)
 		if err != nil {
 			s.error(w, fmt.Errorf("auth: register: read data from request: %v", err), "internal server error", id, http.StatusInternalServerError)
@@ -99,5 +101,40 @@ func (s *server) handleAuthLogin() http.HandlerFunc {
 
 		s.authenticate(w, user.ID)
 		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (s *server) handleOrdersPost() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// TODO implement me
+		_, _ = w.Write([]byte("orders post"))
+	}
+}
+
+func (s *server) handleOrdersGet() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// TODO implement me
+		_, _ = w.Write([]byte("orders get"))
+	}
+}
+
+func (s *server) handleBalanceGet() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// TODO implement me
+		_, _ = w.Write([]byte("balance get"))
+	}
+}
+
+func (s *server) handleBalanceWithdrawPost() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// TODO implement me
+		_, _ = w.Write([]byte("withdraw balance"))
+	}
+}
+
+func (s *server) handleGetAllWithdraws() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// TODO implement me
+		_, _ = w.Write([]byte("get all withdraws"))
 	}
 }
