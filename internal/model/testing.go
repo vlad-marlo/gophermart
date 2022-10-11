@@ -4,11 +4,11 @@ import (
 	"testing"
 )
 
-func TestUser(t *testing.T) *User {
+func TestUser(t *testing.T, login string) *User {
 	t.Helper()
 
 	u := &User{
-		Login:    "login",
+		Login:    login,
 		Password: "password",
 	}
 	_ = u.BeforeCreate()

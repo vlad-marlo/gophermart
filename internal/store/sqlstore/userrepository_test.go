@@ -2,6 +2,8 @@ package sqlstore_test
 
 import (
 	"context"
+	"github.com/google/uuid"
+	"github.com/vlad-marlo/gophermart/internal/pkg/logger"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -10,16 +12,67 @@ import (
 )
 
 func TestUserRepository_Create(t *testing.T) {
+	tt := []struct {
+		name    string
+		login   string
+		wantErr error
+	}{
+		{
+			name:    "good test case #1",
+			login:   "login",
+			wantErr: nil,
+		},
+		{
+			name:    "duplicate login #1",
+			login:   "login",
+			wantErr: sqlstore.ErrLoginAlreadyInUse,
+		},
+	}
 	store, teardown := sqlstore.TestStore(t, conStr)
 	defer teardown("users")
-	u := model.TestUser(t)
-	require.NoError(t, store.User().Create(context.TODO(), u))
-	u1, err := store.User().GetByLogin(context.TODO(), u.Login)
-	require.NoError(t, err)
-	if u.Login != u1.Login || u1.ID == 0 {
-		t.Fatalf("something went wrong")
+	defer logger.DeleteLogFolderAndFile()
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			u := model.TestUser(t, tc.login)
+			err := store.User().Create(context.TODO(), u)
+
+			if tc.wantErr == nil {
+				require.NoError(t, err)
+			} else {
+				require.ErrorIs(t, err, tc.wantErr)
+			}
+
+			u1, err := store.User().GetByLogin(context.TODO(), u.Login)
+			if tc.wantErr == nil {
+				require.NoError(t, err)
+
+				if u.Login != u1.Login || u1.ID == 0 {
+					t.Fatalf("something went wrong")
+				}
+
+				require.True(t, store.User().ExistsWithID(context.TODO(), u.ID))
+			} else {
+				require.False(t, store.User().ExistsWithID(context.TODO(), u.ID))
+			}
+		})
+
 	}
-	if ok := store.User().ExistsWithID(context.TODO(), u.ID); !ok {
-		t.Fatal("user must exist")
+}
+
+func TestUserRepository_GetByLogin_UnExisting(t *testing.T) {
+	var tt []string
+	for i := 0; i < 10; i++ {
+		tt = append(tt, uuid.New().String())
+	}
+
+	// init storage for test
+	store, teardown := sqlstore.TestStore(t, conStr)
+	defer teardown("users")
+	defer logger.DeleteLogFolderAndFile()
+	for _, tc := range tt {
+		t.Run(tc, func(t *testing.T) {
+			_, err := store.User().GetByLogin(context.TODO(), tc)
+			require.ErrorIs(t, err, sqlstore.ErrUncorrectLoginData)
+		})
 	}
 }

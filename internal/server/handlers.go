@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/vlad-marlo/gophermart/internal/pkg/luhn"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/sirupsen/logrus"
@@ -37,11 +39,6 @@ func (s *server) handleAuthRegister() http.HandlerFunc {
 
 		if err := json.Unmarshal(data, &u); err != nil {
 			s.error(w, fmt.Errorf("json unmarshal: %v", err), BadRequestMsg, id, http.StatusBadRequest)
-			return
-		}
-
-		if err := u.BeforeCreate(); err != nil {
-			s.error(w, fmt.Errorf("user: before create: %v", err), InternalErrMsg, id, http.StatusInternalServerError)
 			return
 		}
 
@@ -106,7 +103,28 @@ func (s *server) handleAuthLogin() http.HandlerFunc {
 
 func (s *server) handleOrdersPost() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO implement me
+		id := middleware.GetReqID(r.Context())
+
+		defer func() {
+			_ = r.Body.Close()
+		}()
+
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			s.error(w, err, "", id, http.StatusBadRequest)
+			return
+		}
+
+		num, err := strconv.Atoi(string(data))
+		if err != nil {
+			s.error(w, err, "", id, http.StatusBadRequest)
+			return
+		}
+
+		if ok := luhn.Valid(num); !ok {
+			s.error(w, err, "", id, http.StatusUnprocessableEntity)
+			return
+		}
 		_, _ = w.Write([]byte("orders post"))
 	}
 }

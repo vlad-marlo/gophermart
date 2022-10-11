@@ -22,7 +22,11 @@ type userRepository struct {
 
 // debugQuery ...
 func debugQuery(q string) string {
-	return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(q, "\t", " "), "\n", " "), "  ", " ")
+	q = strings.ReplaceAll(q, "\t", "")
+	q = strings.ReplaceAll(q, "\n", " ")
+	// this need if anywhere in query used spaces instead of \t
+	q = strings.ReplaceAll(q, "    ", " ")
+	return q
 }
 
 // pgError checks err implements pq error or not. If implements then returns error with postgres format or returns error
@@ -39,16 +43,20 @@ func pgError(err error) error {
 // Create ...
 func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 	q := `
-		INSERT INTO 
-		    users(login, password)
-		VALUES 
-		    ($1, $2)
+		INSERT INTO
+			users(login, password)
+		VALUES
+			($1, $2)
 		RETURNING id;
 	`
 
 	r.l.WithFields(logrus.Fields{
 		"request_id": middleware.GetReqID(ctx),
 	}).Trace(debugQuery(q))
+
+	if err := u.BeforeCreate(); err != nil {
+		return fmt.Errorf("before create: %v", err)
+	}
 
 	if err := r.db.QueryRowContext(
 		ctx,
@@ -71,9 +79,9 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 // GetByLogin GetIDByLoginAndPass ...
 func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.User, error) {
 	q := `
-		SELECT 
-		    x.id, x.password
-		FROM users AS x 
+		SELECT
+			x.id, x.password
+		FROM users AS x
 		WHERE x.login=$1;
 	`
 	u := &model.User{Login: login}
@@ -125,12 +133,12 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 	var res bool
 	q := `
 		SELECT EXISTS(
-		    SELECT 
-		        x.* 
-		    FROM 
-		        users AS x
-		    WHERE 
-		        x.id=$1
+			SELECT
+				x.*
+			FROM
+				users AS x
+			WHERE
+				x.id=$1
 		);
 	`
 	r.l.WithFields(logrus.Fields{

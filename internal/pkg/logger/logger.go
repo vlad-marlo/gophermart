@@ -26,20 +26,29 @@ func init() {
 	l := logrus.New()
 
 	l.SetReportCaller(true)
-	l.Formatter = &logrus.JSONFormatter{
-		PrettyPrint: false,
+	l.Formatter = &logrus.TextFormatter{
+		FullTimestamp: true,
+		DisableColors: true,
 		CallerPrettyfier: func(f *runtime.Frame) (fun string, file string) {
 			filename := path.Base(f.File)
 			return f.Function, fmt.Sprintf("%s:%d", filename, f.Line)
 		},
-		DisableTimestamp: false,
 	}
+
+	//l.Formatter = &logrus.JSONFormatter{
+	//	PrettyPrint: false,
+	//	CallerPrettyfier: func(f *runtime.Frame) (fun string, file string) {
+	//		filename := path.Base(f.File)
+	//		return f.Function, fmt.Sprintf("%s:%d", filename, f.Line)
+	//	},
+	//	DisableTimestamp: false,
+	//}
 
 	if err := os.Mkdir("logs", 0777); err != nil && !errors.Is(err, os.ErrExist) {
 		panic(err)
 	}
 	allFile, err := os.OpenFile("logs/all.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0777)
-	if err != nil && err != os.ErrExist {
+	if err != nil && !errors.Is(err, os.ErrExist) {
 		panic(err)
 	}
 
@@ -73,4 +82,8 @@ func GetLogger() Logger {
 }
 func (l *Logger) GetLoggerWithWithField(k string, v interface{}) Logger {
 	return Logger{l.WithField(k, v)}
+}
+
+func DeleteLogFolderAndFile() {
+	_ = os.RemoveAll("logs")
 }
