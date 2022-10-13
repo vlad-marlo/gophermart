@@ -12,9 +12,12 @@ import (
 )
 
 type storage struct {
-	db   *sql.DB
-	user store.UserRepository
-	l    logger.Logger
+	db *sql.DB
+	l  logger.Logger
+
+	// repositoryes
+	user  store.UserRepository
+	order store.OrderRepository
 }
 
 // New ...
@@ -29,10 +32,13 @@ func New(l logger.Logger, c *config.Config) (store.Storage, error) {
 	}
 
 	s := &storage{
-		db:   db,
-		user: &userRepository{db, l},
-		l:    l,
+		db:    db,
+		user:  &userRepository{db, l},
+		order: &orderRepository{db, l},
+		l:     l,
 	}
+
+	//TODO hardcoded variable rewrite migrate args
 	if err := s.migrate(""); err != nil {
 		return nil, fmt.Errorf("migrate: %v", err)
 	}
@@ -42,6 +48,11 @@ func New(l logger.Logger, c *config.Config) (store.Storage, error) {
 // User ...
 func (s *storage) User() store.UserRepository {
 	return s.user
+}
+
+// Order ...
+func (s *storage) Order() store.OrderRepository {
+	return s.order
 }
 
 // Close ...
