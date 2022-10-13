@@ -103,7 +103,7 @@ func (s *server) handleAuthLogin() http.HandlerFunc {
 
 func (s *server) handleOrdersPost() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id := middleware.GetReqID(r.Context())
+		reqID := middleware.GetReqID(r.Context())
 
 		defer func() {
 			_ = r.Body.Close()
@@ -111,21 +111,26 @@ func (s *server) handleOrdersPost() http.HandlerFunc {
 
 		data, err := io.ReadAll(r.Body)
 		if err != nil {
-			s.error(w, err, "", id, http.StatusBadRequest)
+			s.error(w, err, "", reqID, http.StatusBadRequest)
+			return
+		}
+		strNum := string(data)
+		if strNum == "" {
+			s.error(w, fmt.Errorf("bad request data"), "", reqID, http.StatusBadRequest)
 			return
 		}
 
-		num, err := strconv.Atoi(string(data))
+		num, err := strconv.Atoi(strNum)
 		if err != nil {
-			s.error(w, err, "", id, http.StatusBadRequest)
+			s.error(w, err, "", reqID, http.StatusBadRequest)
 			return
 		}
 
 		if ok := luhn.Valid(num); !ok {
-			s.error(w, err, "", id, http.StatusUnprocessableEntity)
+			s.error(w, err, "", reqID, http.StatusUnprocessableEntity)
 			return
 		}
-		_, _ = w.Write([]byte("orders post"))
+		_, _ = w.Write([]byte(strNum))
 	}
 }
 

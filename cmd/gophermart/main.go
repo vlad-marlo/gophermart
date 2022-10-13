@@ -37,7 +37,7 @@ func main() {
 
 	// creating interrupt chan for accepting os signals
 	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM, os.Kill, syscall.SIGSTOP)
+	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM, os.Kill, syscall.SIGINT)
 
 	// gracefully shut down
 	sig := <-interrupt
@@ -48,6 +48,8 @@ func main() {
 		l.Info("got terminate signal")
 	case os.Kill:
 		l.Info("got kill signal")
+	case syscall.SIGINT:
+		l.Infof("got int signal: %s", sig.String())
 	default:
 		l.Info("default")
 	}

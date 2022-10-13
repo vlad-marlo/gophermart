@@ -35,15 +35,6 @@ func init() {
 		},
 	}
 
-	//l.Formatter = &logrus.JSONFormatter{
-	//	PrettyPrint: false,
-	//	CallerPrettyfier: func(f *runtime.Frame) (fun string, file string) {
-	//		filename := path.Base(f.File)
-	//		return f.Function, fmt.Sprintf("%s:%d", filename, f.Line)
-	//	},
-	//	DisableTimestamp: false,
-	//}
-
 	if err := os.Mkdir("logs", 0777); err != nil && !errors.Is(err, os.ErrExist) {
 		panic(err)
 	}

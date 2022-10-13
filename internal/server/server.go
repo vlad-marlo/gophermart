@@ -1,8 +1,9 @@
 package server
 
 import (
-	"github.com/vlad-marlo/gophermart/internal/pkg/logger"
 	"net/http"
+
+	"github.com/vlad-marlo/gophermart/internal/pkg/logger"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -25,13 +26,14 @@ func Start(l logger.Logger, store store.Storage, config *config.Config) error {
 		Router: chi.NewMux(),
 		logger: l,
 	}
+
 	s.configureMiddlewares()
 	s.configureRoutes()
+
 	return http.ListenAndServe(s.config.BindAddr, s.Router)
 }
 
 func (s *server) configureMiddlewares() {
-
 	s.Use(middleware.RequestID)
 	s.Use(s.logRequest)
 
