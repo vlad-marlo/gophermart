@@ -159,3 +159,5 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 	}
 	return res
 }
+
+// Add

@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS balance(
+    id BIGSERIAL NOT NULL UNIQUE,
+    user_id INT REFERENCES users(id) NOT NULL UNIQUE,
+    accrual INT NOT NULL
+);
