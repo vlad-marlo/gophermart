@@ -15,7 +15,7 @@ type server struct {
 	chi.Router
 	store  store.Storage
 	logger logger.Logger
-	// don't sure that this is necessary
+	// don't sure that config is necessary in server struct
 	config *config.Config
 }
 
@@ -45,6 +45,7 @@ func (s *server) configureRoutes() {
 	s.Route("/api/user", func(r chi.Router) {
 		r.Post("/register", s.handleAuthRegister())
 		r.Post("/login", s.handleAuthLogin())
+		// endpoints for authorized users only
 		r.With(s.CheckAuthMiddleware).Route("/", func(r chi.Router) {
 			r.Post("/orders", s.handleOrdersPost())
 			r.Get("/orders", s.handleOrdersGet())

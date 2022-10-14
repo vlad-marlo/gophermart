@@ -16,6 +16,7 @@ type (
 		Create(ctx context.Context, u *model.User) error
 		GetByLogin(ctx context.Context, login string) (*model.User, error)
 		ExistsWithID(ctx context.Context, id int) bool
+		GetBalance(ctx context.Context, id int) int
 	}
 	OrderRepository interface {
 	}

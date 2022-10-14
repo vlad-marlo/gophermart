@@ -160,4 +160,9 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 	return res
 }
 
-// Add
+func (r *userRepository) GetBalance(ctx context.Context, id int) int {
+	q := `
+	`
+	fmt.Print(q)
+	return 1
+}

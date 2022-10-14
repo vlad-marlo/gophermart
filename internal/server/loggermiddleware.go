@@ -2,18 +2,17 @@ package server
 
 import (
 	"fmt"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/sirupsen/logrus"
 	"net/http"
 	"time"
+
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/sirupsen/logrus"
 )
 
-type (
-	loggingResponseWriter struct {
-		http.ResponseWriter
-		statusCode int
-	}
-)
+type loggingResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
 
 func newLoggingResponseWriter(w http.ResponseWriter) *loggingResponseWriter {
 	return &loggingResponseWriter{w, http.StatusOK}
