@@ -25,13 +25,8 @@ func (s *server) CheckAuthMiddleware(next http.Handler) http.Handler {
 		// check request id from request
 		id := middleware.GetReqID(r.Context())
 
-		if user, err := r.Cookie(UserIDCookieName); err != nil {
-
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		} else if err = encryptor.Decode(user.Value, &rawUserID); err != nil {
-
-			s.logger.WithField(RequestIDLoggerField, id).Debugf("decode: %v", err)
+		if err := GetUserIDFromRequest(r, &rawUserID); err != nil {
+			s.logger.WithField(RequestIDLoggerField, id).Debug(err)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}

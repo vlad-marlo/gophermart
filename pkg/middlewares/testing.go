@@ -8,6 +8,7 @@ import (
 	"github.com/vlad-marlo/gophermart/pkg/logger"
 )
 
+// TestServer ...
 func TestServer(t *testing.T) chi.Router {
 	t.Helper()
 

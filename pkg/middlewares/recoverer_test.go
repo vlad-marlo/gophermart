@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestRecoverer ...
 func TestRecoverer(t *testing.T) {
 	r := TestServer(t)
 	ts := httptest.NewServer(r)

@@ -6,12 +6,18 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type User struct {
-	ID                int    `json:"-"`
-	Login             string `json:"login"`
-	Password          string `json:"password"`
-	EncryptedPassword string `json:"-"`
-}
+type (
+	User struct {
+		ID                int    `json:"-"`
+		Login             string `json:"login"`
+		Password          string `json:"password"`
+		EncryptedPassword string `json:"-"`
+	}
+	UserBalance struct {
+		Current   float32 `json:"current"`
+		Withdrawn int     `json:"withdrawn"`
+	}
+)
 
 // BeforeCreate ...
 func (u *User) BeforeCreate() error {

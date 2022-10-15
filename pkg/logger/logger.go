@@ -45,6 +45,7 @@ type (
 	}
 )
 
+// init
 func init() {
 	l := logrus.New()
 
@@ -95,6 +96,7 @@ func init() {
 	e = logrus.NewEntry(l)
 }
 
+// Fire ...
 func (h *writerHook) Fire(e *logrus.Entry) error {
 	line, err := e.String()
 	if err != nil {
@@ -106,22 +108,27 @@ func (h *writerHook) Fire(e *logrus.Entry) error {
 	return nil
 }
 
+// Levels ...
 func (h *writerHook) Levels() []logrus.Level {
 	return h.LogLevels
 }
 
+// GetLogger ...
 func GetLogger() Logger {
 	return &logger{e}
 }
 
+// DeleteLogFolderAndFile ...
 func DeleteLogFolderAndFile() {
 	_ = os.RemoveAll("logs")
 }
 
+// WithFields ...
 func (l *logger) WithFields(args map[string]interface{}) Logger {
 	return &logger{e.WithFields(args)}
 }
 
+// WithField ...
 func (l *logger) WithField(key string, value interface{}) Logger {
 	return &logger{e.WithField(key, value)}
 }

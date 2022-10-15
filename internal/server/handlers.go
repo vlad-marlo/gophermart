@@ -149,8 +149,24 @@ func (s *server) handleOrdersGet() http.HandlerFunc {
 // handleBalanceGet ...
 func (s *server) handleBalanceGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO implement me
-		_, _ = w.Write([]byte("balance get"))
+		reqID := middleware.GetReqID(r.Context())
+		var uID string
+
+		if err := GetUserIDFromRequest(r, &uID); err != nil {
+			s.error(w, err, "internal server error", reqID, http.StatusInternalServerError)
+			return
+		}
+
+		id, err := strconv.Atoi(uID)
+		if err != nil {
+			s.error(w, err, "internal server error", reqID, http.StatusInternalServerError)
+			return
+		}
+
+		b, err := s.store.User().GetBalance(r.Context(), id)
+		data, err := json.Marshal(b)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
 	}
 }
 

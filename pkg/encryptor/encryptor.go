@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+
 	"github.com/vlad-marlo/gophermart/pkg/logger"
 )
 
@@ -57,12 +58,14 @@ func generateRandom(size int) ([]byte, error) {
 	return b, nil
 }
 
+// Encode ...
 func Encode(str string) string {
 	src := []byte(str)
 	dst := e.GCM.Seal(nil, e.nonce, src, nil)
 	return hex.EncodeToString(dst)
 }
 
+// Decode ...
 func Decode(str string, to *string) error {
 	dst, err := hex.DecodeString(str)
 	if err != nil {

@@ -168,7 +168,7 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 }
 
 // GetBalance ...
-func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *float32, spent *int, err error) {
+func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model.UserBalance, err error) {
 	q := `
 		SELECT 
 			x.balance, x.spent 
@@ -186,7 +186,7 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *float
 
 	rows, err := r.db.QueryContext(ctx, q, id)
 	if err != nil {
-		return nil, nil, pgError(err)
+		return nil, pgError(err)
 	}
 
 	defer func() {
@@ -196,10 +196,10 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *float
 	}()
 
 	for rows.Next() {
-		if err := pgError(rows.Scan(&balance, &spent)); err != nil {
-			return nil, nil, err
+		if err := pgError(rows.Scan(&balance.Current, &balance.Withdrawn)); err != nil {
+			return nil, err
 		}
-		return balance, spent, nil
+		return balance, nil
 	}
-	return nil, nil, sql.ErrNoRows
+	return nil, sql.ErrNoRows
 }
