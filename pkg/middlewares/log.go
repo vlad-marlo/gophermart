@@ -10,21 +10,28 @@ import (
 	"github.com/vlad-marlo/gophermart/internal/pkg/logger"
 )
 
-type loggingRW struct {
-	http.ResponseWriter
-	statusCode int
-}
+type (
+	// add possibility to log status code after handling request
+	loggingRW struct {
+		http.ResponseWriter
+		statusCode int
+	}
+	// universal interface for logger middleware
+)
 
+// newLoggingRW ...
 func newLoggingRW(w http.ResponseWriter) *loggingRW {
 	return &loggingRW{w, http.StatusOK}
 }
 
+// WriteHeader ...
 func (l *loggingRW) WriteHeader(code int) {
 	l.statusCode = code
 	l.ResponseWriter.WriteHeader(code)
 }
 
-func LogRequest(logger *logger.Logger) func(next http.Handler) http.Handler {
+// LogRequest ...
+func LogRequest(logger logger.Logger) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			id := middleware.GetReqID(r.Context())

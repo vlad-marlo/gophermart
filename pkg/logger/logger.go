@@ -19,8 +19,29 @@ type (
 		Writer    []io.Writer
 		LogLevels []logrus.Level
 	}
-	Logger struct {
+	logger struct {
 		*logrus.Entry
+	}
+	Logger interface {
+		WithFields(args map[string]interface{}) Logger
+		WithField(key string, value interface{}) Logger
+
+		// log methods
+		Trace(args ...interface{})
+		Debug(args ...interface{})
+		Info(args ...interface{})
+		Warn(args ...interface{})
+		Error(args ...interface{})
+		Fatal(args ...interface{})
+		Panic(args ...interface{})
+
+		// f log methods
+		Tracef(format string, args ...interface{})
+		Debugf(format string, args ...interface{})
+		Infof(format string, args ...interface{})
+		Warnf(format string, args ...interface{})
+		Errorf(format string, args ...interface{})
+		Panicf(format string, args ...interface{})
 	}
 )
 
@@ -59,7 +80,7 @@ func init() {
 	if err := os.Mkdir("logs", 0777); err != nil && !errors.Is(err, os.ErrExist) {
 		panic(err)
 	}
-	allFile, err := os.OpenFile("logs/all.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0777)
+	allFile, err := os.OpenFile(fmt.Sprintf("logs/%s.log", time.Now().Format("2006-1")), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0777)
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		panic(err)
 	}
@@ -89,14 +110,18 @@ func (h *writerHook) Levels() []logrus.Level {
 	return h.LogLevels
 }
 
-func GetLogger() *Logger {
-	return &Logger{e}
-}
-
-func (l *Logger) GetLoggerWithWithField(k string, v interface{}) *Logger {
-	return &Logger{l.WithField(k, v)}
+func GetLogger() Logger {
+	return &logger{e}
 }
 
 func DeleteLogFolderAndFile() {
 	_ = os.RemoveAll("logs")
+}
+
+func (l *logger) WithFields(args map[string]interface{}) Logger {
+	return &logger{e.WithFields(args)}
+}
+
+func (l *logger) WithField(key string, value interface{}) Logger {
+	return &logger{e.WithField(key, value)}
 }
