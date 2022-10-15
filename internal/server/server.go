@@ -3,8 +3,8 @@ package server
 import (
 	"net/http"
 
-	"github.com/vlad-marlo/gophermart/internal/pkg/logger"
-	"github.com/vlad-marlo/gophermart/internal/pkg/middlewares"
+	"github.com/vlad-marlo/gophermart/pkg/logger"
+	"github.com/vlad-marlo/gophermart/pkg/middlewares"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -15,12 +15,12 @@ import (
 type server struct {
 	chi.Router
 	store  store.Storage
-	logger *logger.Logger
+	logger logger.Logger
 	// don't sure that config is necessary in server struct
 	config *config.Config
 }
 
-func Start(l *logger.Logger, store store.Storage, config *config.Config) error {
+func Start(l logger.Logger, store store.Storage, config *config.Config) error {
 	s := &server{
 		store:  store,
 		config: config,
@@ -38,7 +38,7 @@ func (s *server) configureMiddlewares() {
 	s.Use(middleware.RequestID)
 	s.Use(middlewares.LogRequest(s.logger))
 
-	s.Use(middleware.Recoverer)
+	s.Use(middlewares.Recover(s.logger))
 	s.Use(middleware.Compress(5, "text/html", "text/plain", "application/json"))
 }
 

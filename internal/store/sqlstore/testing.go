@@ -3,18 +3,18 @@ package sqlstore
 import (
 	"database/sql"
 	"fmt"
+	"github.com/vlad-marlo/gophermart/pkg/logger"
 	"strings"
 	"testing"
 
-	"github.com/sirupsen/logrus"
-	"github.com/vlad-marlo/gophermart/internal/pkg/logger"
 	"github.com/vlad-marlo/gophermart/internal/store"
 )
 
 func TestStore(t *testing.T, con string) (store.Storage, func(...string)) {
 	t.Helper()
 
-	l := &logger.Logger{Entry: logrus.NewEntry(logrus.New())}
+	l := logger.GetLogger()
+	logger.DeleteLogFolderAndFile()
 
 	db, err := sql.Open("postgres", con)
 	if err != nil {

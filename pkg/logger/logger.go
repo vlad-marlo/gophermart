@@ -26,7 +26,7 @@ type (
 		WithFields(args map[string]interface{}) Logger
 		WithField(key string, value interface{}) Logger
 
-		// log methods
+		// Trace log methods
 		Trace(args ...interface{})
 		Debug(args ...interface{})
 		Info(args ...interface{})
@@ -35,7 +35,7 @@ type (
 		Fatal(args ...interface{})
 		Panic(args ...interface{})
 
-		// f log methods
+		// Tracef f log methods
 		Tracef(format string, args ...interface{})
 		Debugf(format string, args ...interface{})
 		Infof(format string, args ...interface{})

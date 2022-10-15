@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/vlad-marlo/gophermart/internal/pkg/luhn"
+	"github.com/vlad-marlo/gophermart/pkg/luhn"
 	"io"
 	"net/http"
 	"strconv"

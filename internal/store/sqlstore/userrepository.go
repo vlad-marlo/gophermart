@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/vlad-marlo/gophermart/pkg/logger"
 	"strings"
 
 	"github.com/go-chi/chi/v5/middleware"
@@ -12,12 +13,11 @@ import (
 	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"github.com/vlad-marlo/gophermart/internal/model"
-	"github.com/vlad-marlo/gophermart/internal/pkg/logger"
 )
 
 type userRepository struct {
 	db *sql.DB
-	l  *logger.Logger
+	l  logger.Logger
 }
 
 // debugQuery ...
@@ -52,6 +52,9 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 
 	r.l.WithFields(logrus.Fields{
 		"request_id": middleware.GetReqID(ctx),
+		"args": struct {
+			User *model.User `json:"user"`
+		}{u},
 	}).Trace(debugQuery(q))
 
 	if err := u.BeforeCreate(); err != nil {
@@ -64,13 +67,10 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 		u.Login,
 		u.EncryptedPassword,
 	).Scan(&u.ID); err != nil {
-		if pgErr, ok := err.(*pq.Error); ok {
-			if pgErr.Code == pgerrcode.UniqueViolation {
-				return ErrLoginAlreadyInUse
-			}
-			return pgError(pgErr)
+		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == pgerrcode.UniqueViolation {
+			return ErrLoginAlreadyInUse
 		}
-		return err
+		return pgError(err)
 	}
 
 	return nil
@@ -90,6 +90,9 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 	// trace request
 	r.l.WithFields(logrus.Fields{
 		"request_id": id,
+		"args": struct {
+			Login string `json:"login"`
+		}{login},
 	}).Trace(debugQuery(q))
 
 	// we don't need url model, just id
@@ -143,6 +146,9 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 	`
 	r.l.WithFields(logrus.Fields{
 		"request_id": middleware.GetReqID(ctx),
+		"args": struct {
+			ID int `json:"id"`
+		}{id},
 	}).Trace(debugQuery(q))
 
 	if err := r.db.QueryRowContext(
@@ -160,9 +166,38 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 	return res
 }
 
-func (r *userRepository) GetBalance(ctx context.Context, id int) int {
+func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *float32, spent *int, err error) {
 	q := `
+		SELECT 
+			x.balance, x.spent 
+		FROM 
+			users x 
+		WHERE 
+			x.id = $1;
 	`
-	fmt.Print(q)
-	return 1
+	r.l.WithFields(logrus.Fields{
+		"request_id": middleware.GetReqID(ctx),
+		"args": struct {
+			ID int `json:"id"`
+		}{id},
+	}).Trace(debugQuery(q))
+
+	rows, err := r.db.QueryContext(ctx, q, id)
+	if err != nil {
+		return nil, nil, pgError(err)
+	}
+
+	defer func() {
+		if err := pgError(rows.Close()); err != nil {
+			r.l.Errorf("get balance: defer func: %v", err)
+		}
+	}()
+
+	for rows.Next() {
+		if err := pgError(rows.Scan(&balance, &spent)); err != nil {
+			return nil, nil, err
+		}
+		return balance, spent, nil
+	}
+	return nil, nil, sql.ErrNoRows
 }

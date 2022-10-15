@@ -3,7 +3,7 @@ package sqlstore_test
 import (
 	"context"
 	"github.com/google/uuid"
-	"github.com/vlad-marlo/gophermart/internal/pkg/logger"
+	"github.com/vlad-marlo/gophermart/pkg/logger"
 	"testing"
 
 	"github.com/stretchr/testify/require"

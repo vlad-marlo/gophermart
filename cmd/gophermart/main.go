@@ -1,11 +1,10 @@
 package main
 
 import (
+	"github.com/vlad-marlo/gophermart/pkg/logger"
 	"os"
 	"os/signal"
 	"syscall"
-
-	"github.com/vlad-marlo/gophermart/internal/pkg/logger"
 
 	"github.com/vlad-marlo/gophermart/internal/config"
 	"github.com/vlad-marlo/gophermart/internal/server"
