@@ -2,15 +2,17 @@ package sqlstore_test
 
 import (
 	"context"
+	"testing"
+
 	"github.com/google/uuid"
 	"github.com/vlad-marlo/gophermart/pkg/logger"
-	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/vlad-marlo/gophermart/internal/model"
 	"github.com/vlad-marlo/gophermart/internal/store/sqlstore"
 )
 
+// TestUserRepository_Create ...
 func TestUserRepository_Create(t *testing.T) {
 	tt := []struct {
 		name    string
@@ -59,6 +61,7 @@ func TestUserRepository_Create(t *testing.T) {
 	}
 }
 
+// TestUserRepository_GetByLogin_UnExisting ...
 func TestUserRepository_GetByLogin_UnExisting(t *testing.T) {
 	var tt []string
 	for i := 0; i < 10; i++ {

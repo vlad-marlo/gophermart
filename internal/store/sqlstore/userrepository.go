@@ -5,8 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/vlad-marlo/gophermart/pkg/logger"
 	"strings"
+
+	"github.com/vlad-marlo/gophermart/pkg/logger"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgerrcode"
@@ -166,6 +167,7 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 	return res
 }
 
+// GetBalance ...
 func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *float32, spent *int, err error) {
 	q := `
 		SELECT 

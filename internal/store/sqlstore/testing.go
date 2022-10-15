@@ -3,13 +3,15 @@ package sqlstore
 import (
 	"database/sql"
 	"fmt"
-	"github.com/vlad-marlo/gophermart/pkg/logger"
 	"strings"
 	"testing"
+
+	"github.com/vlad-marlo/gophermart/pkg/logger"
 
 	"github.com/vlad-marlo/gophermart/internal/store"
 )
 
+// TestStore ...
 func TestStore(t *testing.T, con string) (store.Storage, func(...string)) {
 	t.Helper()
 

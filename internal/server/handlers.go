@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/vlad-marlo/gophermart/pkg/luhn"
 	"io"
 	"net/http"
 	"strconv"
+
+	"github.com/vlad-marlo/gophermart/pkg/luhn"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/sirupsen/logrus"
@@ -21,6 +22,7 @@ const (
 	InternalErrMsg = "internal server error"
 )
 
+// handleAuthRegister ...
 func (s *server) handleAuthRegister() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var u *model.User
@@ -60,6 +62,7 @@ func (s *server) handleAuthRegister() http.HandlerFunc {
 	}
 }
 
+// handleAuthLogin ...
 func (s *server) handleAuthLogin() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req *model.User
@@ -101,6 +104,7 @@ func (s *server) handleAuthLogin() http.HandlerFunc {
 	}
 }
 
+// handleOrdersPost ...
 func (s *server) handleOrdersPost() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		reqID := middleware.GetReqID(r.Context())
@@ -134,6 +138,7 @@ func (s *server) handleOrdersPost() http.HandlerFunc {
 	}
 }
 
+// handleOrdersGet ...
 func (s *server) handleOrdersGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO implement me
@@ -141,6 +146,7 @@ func (s *server) handleOrdersGet() http.HandlerFunc {
 	}
 }
 
+// handleBalanceGet ...
 func (s *server) handleBalanceGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO implement me
@@ -148,6 +154,7 @@ func (s *server) handleBalanceGet() http.HandlerFunc {
 	}
 }
 
+// handleBalanceWithdrawPost ...
 func (s *server) handleBalanceWithdrawPost() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO implement me
@@ -155,6 +162,7 @@ func (s *server) handleBalanceWithdrawPost() http.HandlerFunc {
 	}
 }
 
+// handleGetAllWithdraws ...
 func (s *server) handleGetAllWithdraws() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO implement me

@@ -20,6 +20,7 @@ type server struct {
 	config *config.Config
 }
 
+// Start ...
 func Start(l logger.Logger, store store.Storage, config *config.Config) error {
 	s := &server{
 		store:  store,
@@ -34,6 +35,7 @@ func Start(l logger.Logger, store store.Storage, config *config.Config) error {
 	return http.ListenAndServe(s.config.BindAddr, s.Router)
 }
 
+// configureMiddlewares ...
 func (s *server) configureMiddlewares() {
 	s.Use(middleware.RequestID)
 	s.Use(middlewares.LogRequest(s.logger))
@@ -42,6 +44,7 @@ func (s *server) configureMiddlewares() {
 	s.Use(middleware.Compress(5, "text/html", "text/plain", "application/json"))
 }
 
+// configureRoutes ...
 func (s *server) configureRoutes() {
 	s.Route("/api/user", func(r chi.Router) {
 		r.Post("/register", s.handleAuthRegister())

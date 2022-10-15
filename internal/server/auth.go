@@ -2,9 +2,10 @@ package server
 
 import (
 	"fmt"
-	"github.com/vlad-marlo/gophermart/pkg/encryptor"
 	"net/http"
 	"strconv"
+
+	"github.com/vlad-marlo/gophermart/pkg/encryptor"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/vlad-marlo/gophermart/internal/store/sqlstore"
@@ -16,6 +17,7 @@ const (
 	UserIDLoggerField    = "user_id"
 )
 
+// CheckAuthMiddleware ...
 func (s *server) CheckAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var rawUserID string
@@ -49,6 +51,7 @@ func (s *server) CheckAuthMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// authenticate ...
 func (s *server) authenticate(w http.ResponseWriter, id int) {
 	encoded := encryptor.Encode(fmt.Sprint(id))
 	c := &http.Cookie{

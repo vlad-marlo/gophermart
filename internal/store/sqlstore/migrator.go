@@ -10,6 +10,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// migrate ...
 func (s *storage) migrate(source string) error {
 	if source == "" {
 		source = "file://migrations"

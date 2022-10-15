@@ -9,6 +9,7 @@ var (
 	conStr string
 )
 
+// TestMain ...
 func TestMain(m *testing.M) {
 	conStr = os.Getenv("TEST_DB_URI")
 	if conStr == "" {
