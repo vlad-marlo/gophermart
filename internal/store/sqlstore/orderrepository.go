@@ -8,5 +8,5 @@ import (
 
 type orderRepository struct {
 	db *sql.DB
-	l  logger.Logger
+	l  *logger.Logger
 }

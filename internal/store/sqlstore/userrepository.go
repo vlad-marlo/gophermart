@@ -17,7 +17,7 @@ import (
 
 type userRepository struct {
 	db *sql.DB
-	l  logger.Logger
+	l  *logger.Logger
 }
 
 // debugQuery ...

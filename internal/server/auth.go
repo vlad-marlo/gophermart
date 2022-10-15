@@ -32,25 +32,21 @@ func init() {
 	key, err := generateRandom(aes.BlockSize)
 	if err != nil {
 		panic(fmt.Sprintf("generate key: %v", err))
-		return
 	}
 
 	aesBlock, err := aes.NewCipher(key)
 	if err != nil {
 		panic(fmt.Sprintf("initialize cipher: %v", err))
-		return
 	}
 
 	aesGCM, err := cipher.NewGCM(aesBlock)
 	if err != nil {
 		panic(fmt.Sprintf("initialize GCM encryptor: %v", err))
-		return
 	}
 
 	nonce, err := generateRandom(aesGCM.NonceSize())
 	if err != nil {
 		panic(fmt.Sprintf("initialize GCM nonce: %v", err))
-		return
 	}
 
 	encryptor = &Encryptor{

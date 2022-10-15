@@ -14,7 +14,7 @@ import (
 func TestStore(t *testing.T, con string) (store.Storage, func(...string)) {
 	t.Helper()
 
-	l := logger.Logger{Entry: logrus.NewEntry(logrus.New())}
+	l := &logger.Logger{Entry: logrus.NewEntry(logrus.New())}
 
 	db, err := sql.Open("postgres", con)
 	if err != nil {

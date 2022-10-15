@@ -3,11 +3,13 @@ package logger
 import (
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"io"
 	"os"
 	"path"
 	"runtime"
+	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 var e *logrus.Entry
@@ -26,13 +28,32 @@ func init() {
 	l := logrus.New()
 
 	l.SetReportCaller(true)
-	l.Formatter = &logrus.TextFormatter{
+
+	textFormatter := &logrus.TextFormatter{
 		FullTimestamp: true,
 		DisableColors: true,
 		CallerPrettyfier: func(f *runtime.Frame) (fun string, file string) {
 			filename := path.Base(f.File)
 			return f.Function, fmt.Sprintf("%s:%d", filename, f.Line)
 		},
+		TimestampFormat: time.RFC3339,
+	}
+
+	jsonFormatter := &logrus.JSONFormatter{
+		DisableTimestamp: false,
+		TimestampFormat:  time.RFC3339,
+		CallerPrettyfier: func(f *runtime.Frame) (function string, file string) {
+			filename := path.Base(f.File)
+			return f.Function, fmt.Sprintf("%s:%d", filename, f.Line)
+		},
+		PrettyPrint: false,
+	}
+
+	format := os.Getenv("LOG_FORMATTER")
+	if format == "text" {
+		l.SetFormatter(textFormatter)
+	} else {
+		l.SetFormatter(jsonFormatter)
 	}
 
 	if err := os.Mkdir("logs", 0777); err != nil && !errors.Is(err, os.ErrExist) {
@@ -68,11 +89,12 @@ func (h *writerHook) Levels() []logrus.Level {
 	return h.LogLevels
 }
 
-func GetLogger() Logger {
-	return Logger{e}
+func GetLogger() *Logger {
+	return &Logger{e}
 }
-func (l *Logger) GetLoggerWithWithField(k string, v interface{}) Logger {
-	return Logger{l.WithField(k, v)}
+
+func (l *Logger) GetLoggerWithWithField(k string, v interface{}) *Logger {
+	return &Logger{l.WithField(k, v)}
 }
 
 func DeleteLogFolderAndFile() {
