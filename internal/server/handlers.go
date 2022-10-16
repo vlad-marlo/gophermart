@@ -166,7 +166,7 @@ func (s *server) handleBalanceGet() http.HandlerFunc {
 		b, err := s.store.User().GetBalance(r.Context(), id)
 		data, err := json.Marshal(b)
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(data)
+		_, _ = w.Write(data)
 	}
 }
 
