@@ -3,6 +3,7 @@ package logger
 import (
 	"errors"
 	"fmt"
+	"github.com/caarlos0/env/v6"
 	"io"
 	"os"
 	"path"
@@ -27,26 +28,43 @@ type (
 		WithField(key string, value interface{}) Logger
 
 		// Trace log methods
+		// Trace f
 		Trace(args ...interface{})
+		// Debug ...
 		Debug(args ...interface{})
+		// Info ...
 		Info(args ...interface{})
+		// Warn ...
 		Warn(args ...interface{})
+		// Error ...
 		Error(args ...interface{})
+		// Fatal ...
 		Fatal(args ...interface{})
+		// Panic ...
 		Panic(args ...interface{})
 
 		// Tracef f log methods
 		Tracef(format string, args ...interface{})
+		// Debugf ...
 		Debugf(format string, args ...interface{})
+		// Infof ...
 		Infof(format string, args ...interface{})
+		// Warnf ...
 		Warnf(format string, args ...interface{})
+		// Errorf ...
 		Errorf(format string, args ...interface{})
+		// Fatalf ...
+		Fatalf(format string, args ...interface{})
+		// Panicf ...
 		Panicf(format string, args ...interface{})
 	}
 )
 
 // init
 func init() {
+	var config struct {
+		LogLevel string `env:"LOG_LEVEL" envDefault:"trace"`
+	}
 	l := logrus.New()
 
 	l.SetReportCaller(true)
@@ -83,7 +101,7 @@ func init() {
 	}
 	allFile, err := os.OpenFile(fmt.Sprintf("logs/%s.log", time.Now().Format("2006-1")), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0777)
 	if err != nil && !errors.Is(err, os.ErrExist) {
-		panic(err)
+		l.Panicf("open file: %v", err)
 	}
 
 	l.SetOutput(io.Discard)
@@ -91,7 +109,14 @@ func init() {
 		Writer:    []io.Writer{allFile, os.Stdout},
 		LogLevels: logrus.AllLevels,
 	})
-	l.SetLevel(logrus.TraceLevel)
+	if err := env.Parse(&config); err != nil {
+		l.Panicf("env parse: %v", err)
+	}
+	level, err := logrus.ParseLevel(config.LogLevel)
+	if err != nil {
+		level = logrus.TraceLevel
+	}
+	l.SetLevel(level)
 
 	e = logrus.NewEntry(l)
 }
