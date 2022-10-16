@@ -5,9 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/lib/pq"
-	"strings"
 
 	"github.com/vlad-marlo/gophermart/pkg/logger"
 
@@ -196,11 +197,13 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model
 	return nil, sql.ErrNoRows
 }
 
+// IncrementBalance ...
 func (r *userRepository) IncrementBalance(ctx context.Context, id, add int) error {
 	//TODO implement me
 	panic("implement me")
 }
 
+// UseBalance ...
 func (r *userRepository) UseBalance(ctx context.Context, id, use int) error {
 	//TODO implement me
 	panic("implement me")

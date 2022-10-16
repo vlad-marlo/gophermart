@@ -3,11 +3,12 @@ package sqlstore
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/vlad-marlo/gophermart/internal/model"
 	"github.com/vlad-marlo/gophermart/pkg/logger"
-	"time"
 )
 
 type orderRepository struct {
@@ -37,7 +38,9 @@ func (o *orderRepository) GetAllByUser(ctx context.Context, user int) (res []*mo
 		FROM
 		    orders x
 		WHERE
-		    x.user_id = $1;
+		    x.user_id = $1
+		ORDER BY
+		    x.created_at;
 	`
 	o.l.WithField("request_id", middleware.GetReqID(ctx)).Trace(debugQuery(q))
 
