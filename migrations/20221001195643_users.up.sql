@@ -2,6 +2,6 @@ CREATE TABLE IF NOT EXISTS users(
     id BIGSERIAL UNIQUE PRIMARY KEY NOT NULL,
     login VARCHAR UNIQUE NOT NULL,
     password VARCHAR NOT NULL,
-    balance FLOAT DEFAULT 0,
+    balance money DEFAULT 0,
     spent INT DEFAULT 0
 );

@@ -145,9 +145,6 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 	`
 	r.l.WithFields(logrus.Fields{
 		"request_id": middleware.GetReqID(ctx),
-		"args": struct {
-			ID int `json:"id"`
-		}{id},
 	}).Trace(debugQuery(q))
 
 	if err := r.db.QueryRow(

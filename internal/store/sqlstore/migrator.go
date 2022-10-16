@@ -1,3 +1,0 @@
-package sqlstore
-
-// migrate ...

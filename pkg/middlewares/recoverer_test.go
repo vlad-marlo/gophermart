@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"github.com/vlad-marlo/gophermart/pkg/logger"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,6 +11,7 @@ import (
 
 // TestRecoverer ...
 func TestRecoverer(t *testing.T) {
+	defer logger.DeleteLogFolderAndFile()
 	r := TestServer(t)
 	ts := httptest.NewServer(r)
 	defer ts.Close()
