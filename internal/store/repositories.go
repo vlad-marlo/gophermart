@@ -9,7 +9,7 @@ import (
 type (
 	Storage interface {
 		User() UserRepository
-		Close() error
+		Close()
 		Order() OrderRepository
 	}
 	UserRepository interface {

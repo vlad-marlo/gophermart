@@ -1,32 +1,34 @@
 package sqlstore
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
-	"github.com/vlad-marlo/gophermart/pkg/logger"
 
-	_ "github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/vlad-marlo/gophermart/internal/config"
 	"github.com/vlad-marlo/gophermart/internal/store"
+	"github.com/vlad-marlo/gophermart/pkg/logger"
 )
 
 type storage struct {
-	db *sql.DB
+	db *pgxpool.Pool
 	l  logger.Logger
 
-	// repositoryes
+	// repositories
 	user  store.UserRepository
 	order store.OrderRepository
 }
 
 // New ...
-func New(l logger.Logger, c *config.Config) (store.Storage, error) {
-	db, err := sql.Open("postgres", c.DBURI)
+func New(ctx context.Context, l logger.Logger, c *config.Config) (store.Storage, error) {
+	cfg, err := pgxpool.ParseConfig(c.DBURI)
+	db, err := pgxpool.NewWithConfig(ctx, cfg)
+
 	if err != nil {
 		return nil, fmt.Errorf("sql open: %v", err)
 	}
 
-	if err := db.Ping(); err != nil {
+	if err := db.Ping(ctx); err != nil {
 		return nil, fmt.Errorf("ping db: %v", err)
 	}
 
@@ -38,7 +40,7 @@ func New(l logger.Logger, c *config.Config) (store.Storage, error) {
 	}
 
 	//TODO hardcoded variable rewrite migrate args
-	if err := s.migrate(""); err != nil {
+	if err := s.migrate("", c.DBURI); err != nil {
 		return nil, fmt.Errorf("migrate: %v", err)
 	}
 	return s, nil
@@ -55,6 +57,6 @@ func (s *storage) Order() store.OrderRepository {
 }
 
 // Close ...
-func (s *storage) Close() error {
-	return s.db.Close()
+func (s *storage) Close() {
+	s.db.Close()
 }

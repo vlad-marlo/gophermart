@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"github.com/vlad-marlo/gophermart/pkg/logger"
 	"os"
 	"os/signal"
@@ -21,8 +22,9 @@ func main() {
 		l.Panicf("new config: %v", err)
 	}
 
+	ctx := context.Background()
 	// init store
-	store, err := sqlstore.New(l, cfg)
+	store, err := sqlstore.New(ctx, l, cfg)
 	if err != nil {
 		l.Panicf("new sql store: %v", err)
 	}
@@ -53,8 +55,6 @@ func main() {
 		l.Info("default")
 	}
 
-	if err := store.Close(); err != nil {
-		l.Panicf("store: close: %v", err)
-	}
+	store.Close()
 	l.Info("server was closed successful")
 }

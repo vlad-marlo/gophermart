@@ -1,10 +1,12 @@
 package sqlstore
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/vlad-marlo/gophermart/pkg/logger"
 
@@ -18,12 +20,12 @@ func TestStore(t *testing.T, con string) (store.Storage, func(...string)) {
 	l := logger.GetLogger()
 	logger.DeleteLogFolderAndFile()
 
-	db, err := sql.Open("postgres", con)
+	db, err := pgxpool.New(context.TODO(), con)
 	if err != nil {
 		t.Fatalf("test store: sql open: %v", err)
 	}
 
-	if err := db.Ping(); err != nil {
+	if err := db.Ping(context.TODO()); err != nil {
 		t.Fatalf("test store: db ping: %v", err)
 	}
 
@@ -33,13 +35,13 @@ func TestStore(t *testing.T, con string) (store.Storage, func(...string)) {
 		l:    l,
 	}
 	source := "file://../../../migrations"
-	if err := s.migrate(source); err != nil {
+	if err := s.migrate(source, con); err != nil {
 		t.Fatalf("test store: sql migrate: %v", err)
 	}
 	return s, func(tables ...string) {
 		if len(tables) > 0 {
-			_, _ = db.Exec(fmt.Sprintf("TRUNCATE %s CASCADE", strings.Join(tables, ", ")))
+			_, _ = db.Exec(context.TODO(), fmt.Sprintf("TRUNCATE %s CASCADE", strings.Join(tables, ", ")))
 		}
-		_ = db.Close()
+		db.Close()
 	}
 }

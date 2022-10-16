@@ -5,19 +5,21 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/lib/pq"
 	"strings"
 
 	"github.com/vlad-marlo/gophermart/pkg/logger"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgerrcode"
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
 	"github.com/vlad-marlo/gophermart/internal/model"
 )
 
 type userRepository struct {
-	db *sql.DB
+	db *pgxpool.Pool
 	l  logger.Logger
 }
 
@@ -32,7 +34,8 @@ func debugQuery(q string) string {
 
 // pgError checks err implements pq error or not. If implements then returns error with postgres format or returns error
 func pgError(err error) error {
-	if pgErr, ok := err.(*pq.Error); ok {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
 		return fmt.Errorf(
 			"SQL error: %s, Detail: %s, Where: %s, Code: %s, State: %s",
 			pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState(),
@@ -62,13 +65,14 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 		return fmt.Errorf("before create: %v", err)
 	}
 
-	if err := r.db.QueryRowContext(
+	if err := r.db.QueryRow(
 		ctx,
 		q,
 		u.Login,
 		u.EncryptedPassword,
 	).Scan(&u.ID); err != nil {
-		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == pgerrcode.UniqueViolation {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
 			return ErrLoginAlreadyInUse
 		}
 		return pgError(err)
@@ -97,20 +101,14 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 	}).Trace(debugQuery(q))
 
 	// we don't need url model, just id
-	rows, err := r.db.QueryContext(
+	rows, err := r.db.Query(
 		ctx,
 		q,
 		login,
 	)
 
 	// closing rows
-	defer func() {
-		if err := rows.Close(); err != nil {
-			r.l.WithFields(logrus.Fields{
-				"request_id": id,
-			}).Errorf("user repo: get by login: rows close: %v", pgError(err))
-		}
-	}()
+	defer rows.Close()
 
 	// check error from query context
 	if err != nil {
@@ -152,7 +150,7 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 		}{id},
 	}).Trace(debugQuery(q))
 
-	if err := r.db.QueryRowContext(
+	if err := r.db.QueryRow(
 		ctx,
 		q,
 		id,
@@ -184,16 +182,12 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model
 		}{id},
 	}).Trace(debugQuery(q))
 
-	rows, err := r.db.QueryContext(ctx, q, id)
+	rows, err := r.db.Query(ctx, q, id)
 	if err != nil {
 		return nil, pgError(err)
 	}
 
-	defer func() {
-		if err := pgError(rows.Close()); err != nil {
-			r.l.Errorf("get balance: defer func: %v", err)
-		}
-	}()
+	defer rows.Close()
 
 	for rows.Next() {
 		if err := pgError(rows.Scan(&balance.Current, &balance.Withdrawn)); err != nil {
@@ -201,5 +195,6 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model
 		}
 		return balance, nil
 	}
+
 	return nil, sql.ErrNoRows
 }

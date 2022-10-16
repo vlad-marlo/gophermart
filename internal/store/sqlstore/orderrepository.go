@@ -1,11 +1,11 @@
 package sqlstore
 
 import (
-	"database/sql"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/vlad-marlo/gophermart/pkg/logger"
 )
 
 type orderRepository struct {
-	db *sql.DB
+	db *pgxpool.Pool
 	l  logger.Logger
 }
