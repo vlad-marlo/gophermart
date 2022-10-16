@@ -2,7 +2,12 @@ package sqlstore
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	_ "github.com/lib/pq"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/vlad-marlo/gophermart/internal/config"
@@ -39,7 +44,6 @@ func New(ctx context.Context, l logger.Logger, c *config.Config) (store.Storage,
 		l:     l,
 	}
 
-	//TODO hardcoded variable rewrite migrate args
 	if err := s.migrate("", c.DBURI); err != nil {
 		return nil, fmt.Errorf("migrate: %v", err)
 	}
@@ -59,4 +63,25 @@ func (s *storage) Order() store.OrderRepository {
 // Close ...
 func (s *storage) Close() {
 	s.db.Close()
+}
+
+func (s *storage) migrate(sourceUrl, databaseUrl string) error {
+	if sourceUrl == "" {
+		sourceUrl = "file://migrations"
+	}
+	m, err := migrate.New(
+		sourceUrl,
+		databaseUrl,
+	)
+	if err != nil {
+		return fmt.Errorf("new migrate example: %v", err)
+	}
+	defer func() {
+		_, _ = m.Close()
+	}()
+
+	if err = m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("up: %v", err)
+	}
+	return nil
 }

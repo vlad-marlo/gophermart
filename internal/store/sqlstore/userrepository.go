@@ -198,3 +198,13 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model
 
 	return nil, sql.ErrNoRows
 }
+
+func (r *userRepository) IncrementBalance(ctx context.Context, id, add int) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (r *userRepository) UseBalance(ctx context.Context, id, use int) error {
+	//TODO implement me
+	panic("implement me")
+}
