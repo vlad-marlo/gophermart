@@ -3,7 +3,6 @@ package logger
 import (
 	"errors"
 	"fmt"
-	"github.com/caarlos0/env/v6"
 	"io"
 	"os"
 	"path"
@@ -11,10 +10,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/caarlos0/env/v6"
+
 	"github.com/sirupsen/logrus"
 )
 
-var e *logrus.Entry
+var (
+	e             *logrus.Entry
+	jsonFormatter *logrus.JSONFormatter
+	textFormatter *logrus.TextFormatter
+)
 
 type (
 	writerHook struct {
@@ -70,7 +75,7 @@ func init() {
 
 	l.SetReportCaller(true)
 
-	textFormatter := &logrus.TextFormatter{
+	textFormatter = &logrus.TextFormatter{
 		FullTimestamp: true,
 		DisableColors: true,
 		CallerPrettyfier: func(f *runtime.Frame) (fun string, file string) {
@@ -80,7 +85,7 @@ func init() {
 		TimestampFormat: time.RFC3339,
 	}
 
-	jsonFormatter := &logrus.JSONFormatter{
+	jsonFormatter = &logrus.JSONFormatter{
 		DisableTimestamp: false,
 		TimestampFormat:  time.RFC3339,
 		CallerPrettyfier: func(f *runtime.Frame) (function string, file string) {
@@ -90,16 +95,16 @@ func init() {
 		PrettyPrint: false,
 	}
 
-	format := os.Getenv("LOG_FORMATTER")
-	if format == "text" {
+	if format := os.Getenv("LOG_FORMATTER"); format == "text" {
 		l.SetFormatter(textFormatter)
 	} else {
 		l.SetFormatter(jsonFormatter)
 	}
 
 	if err := os.Mkdir("logs", 0777); err != nil && !errors.Is(err, os.ErrExist) {
-		panic(err)
+		l.Panicf("mkdir: %v", err)
 	}
+
 	allFile, err := os.OpenFile(fmt.Sprintf("logs/%s.log", time.Now().Format("2006-1")), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0777)
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		l.Panicf("open file: %v", err)
@@ -116,6 +121,7 @@ func init() {
 	level, err := logrus.ParseLevel(config.LogLevel)
 	if err != nil {
 		level = logrus.TraceLevel
+		l.Warnf("parse level: %v", err)
 	}
 	l.SetLevel(level)
 
