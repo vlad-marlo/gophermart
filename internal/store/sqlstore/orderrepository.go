@@ -40,7 +40,7 @@ func (o *orderRepository) GetAllByUser(ctx context.Context, user int) (res []*mo
 		WHERE
 		    x.user_id = $1
 		ORDER BY
-		    x.created_at;
+		    x.created_at ASC;
 	`
 	o.l.WithField("request_id", middleware.GetReqID(ctx)).Trace(debugQuery(q))
 

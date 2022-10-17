@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/lib/pq"
 
 	"github.com/vlad-marlo/gophermart/pkg/logger"
 
@@ -33,10 +32,9 @@ func debugQuery(q string) string {
 	return q
 }
 
-// pgError checks err implements pq error or not. If implements then returns error with postgres format or returns error
+// pgError checks err implements postgres error or not. If implements then returns error with postgres format or returns error
 func pgError(err error) error {
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
+	if pgErr, ok := err.(*pgconn.PgError); ok {
 		return fmt.Errorf(
 			"SQL error: %s, Detail: %s, Where: %s, Code: %s, State: %s",
 			pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState(),
@@ -72,8 +70,7 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 		u.Login,
 		u.EncryptedPassword,
 	).Scan(&u.ID); err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == pgerrcode.UniqueViolation {
 			return ErrLoginAlreadyInUse
 		}
 		return pgError(err)
@@ -96,9 +93,6 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 	// trace request
 	r.l.WithFields(logrus.Fields{
 		"request_id": id,
-		"args": struct {
-			Login string `json:"login"`
-		}{login},
 	}).Trace(debugQuery(q))
 
 	// we don't need url model, just id
@@ -153,7 +147,7 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 		q,
 		id,
 	).Scan(&res); err != nil {
-		if pgErr, ok := err.(*pq.Error); ok {
+		if pgErr, ok := err.(*pgconn.PgError); ok {
 			r.l.WithFields(logrus.Fields{
 				"request_id": middleware.GetReqID(ctx),
 			}).Errorf("Exists with id: scan: %v", pgError(pgErr))
@@ -175,9 +169,6 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model
 	`
 	r.l.WithFields(logrus.Fields{
 		"request_id": middleware.GetReqID(ctx),
-		"args": struct {
-			ID int `json:"id"`
-		}{id},
 	}).Trace(debugQuery(q))
 
 	rows, err := r.db.Query(ctx, q, id)
@@ -199,12 +190,25 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model
 
 // IncrementBalance ...
 func (r *userRepository) IncrementBalance(ctx context.Context, id, add int) error {
-	//TODO implement me
-	panic("implement me")
+	q := `
+		UPDATE
+			users
+		SET
+			balance = balance + $1
+		WHERE
+			id = $2;
+	`
+	if add <= 0 {
+		return fmt.Errorf("check args: %v", ErrUncorrectData)
+	}
+	if _, err := r.db.Exec(ctx, q, add, id); err != nil {
+		return fmt.Errorf("db exec: %v", pgError(err))
+	}
+	return nil
 }
 
 // UseBalance ...
 func (r *userRepository) UseBalance(ctx context.Context, id, use int) error {
-	//TODO implement me
-	panic("implement me")
+	_, _ = r.db.Begin(ctx)
+	return nil
 }
