@@ -11,7 +11,7 @@ import (
 
 // TestRecoverer ...
 func TestRecoverer(t *testing.T) {
-	defer logger.DeleteLogFolderAndFile()
+	defer logger.DeleteLogFolderAndFile(t)
 	r := TestServer(t)
 	ts := httptest.NewServer(r)
 	defer ts.Close()

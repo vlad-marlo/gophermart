@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"testing"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -144,7 +145,8 @@ func GetLogger() Logger {
 }
 
 // DeleteLogFolderAndFile ...
-func DeleteLogFolderAndFile() {
+func DeleteLogFolderAndFile(t *testing.T) {
+	t.Helper()
 	_ = os.RemoveAll("logs")
 }
 

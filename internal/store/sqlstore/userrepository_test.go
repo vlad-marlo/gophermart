@@ -32,7 +32,7 @@ func TestUserRepository_Create(t *testing.T) {
 	}
 	store, teardown := sqlstore.TestStore(t, conStr)
 	defer teardown("users")
-	defer logger.DeleteLogFolderAndFile()
+	defer logger.DeleteLogFolderAndFile(t)
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			u := model.TestUser(t, tc.login)
@@ -71,7 +71,7 @@ func TestUserRepository_GetByLogin_UnExisting(t *testing.T) {
 	// init storage for test
 	store, teardown := sqlstore.TestStore(t, conStr)
 	defer teardown("users")
-	defer logger.DeleteLogFolderAndFile()
+	defer logger.DeleteLogFolderAndFile(t)
 	for _, tc := range tt {
 		t.Run(tc, func(t *testing.T) {
 			_, err := store.User().GetByLogin(context.TODO(), tc)

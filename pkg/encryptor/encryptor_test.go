@@ -9,7 +9,7 @@ import (
 
 func TestEncryptor_DecodeEncode(t *testing.T) {
 	var data []string
-	defer logger.DeleteLogFolderAndFile()
+	defer logger.DeleteLogFolderAndFile(t)
 
 	for i := 0; i < 100; i++ {
 		data = append(data, uuid.New().String())
