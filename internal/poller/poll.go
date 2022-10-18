@@ -47,6 +47,7 @@ func (s *OrderPoller) Close() {
 	close(s.queue)
 }
 
+// startPolling ...
 func (s *OrderPoller) startPolling() {
 	for i := 0; i < s.limit; i++ {
 		go func() {
@@ -57,6 +58,7 @@ func (s *OrderPoller) startPolling() {
 	}
 }
 
+// pollWork ...
 func (s *OrderPoller) pollWork(t task) {
 	o, err := s.GetOrderFromAccrual(t.ID)
 	if err != nil {
@@ -65,10 +67,28 @@ func (s *OrderPoller) pollWork(t task) {
 			s.queue <- t
 			return
 		}
-
+		return
+	}
+	switch o.Status {
+	case "PROCESSING":
+		o.Status = model.StatusProcessing
+		s.store.Order().ChangeStatus(context.TODO(), o)
+		s.queue <- task{t.ID, t.User, model.StatusProcessing}
+	case "REGISTERED":
+		s.queue <- t
+	case "INVALID":
+		o.Status = model.StatusInvalid
+		s.store.Order().ChangeStatus(context.TODO(), o)
+	case "PROCESSED":
+		o.Status = model.StatusProcessed
+		// TODO добавить пользователям баллов тута
+		s.store.Order().ChangeStatus(context.TODO(), o)
+	default:
+		s.logger.Warnf("got unknown status: %v", o.Status)
 	}
 }
 
+// GetOrderFromAccrual ...
 func (s *OrderPoller) GetOrderFromAccrual(number int) (o *model.OrderInAccrual, err error) {
 	response, err := http.Get(fmt.Sprintf("%s/%d", s.config.AccuralSystemAddres, number))
 	if err != nil {
@@ -96,6 +116,7 @@ func (s *OrderPoller) GetOrderFromAccrual(number int) (o *model.OrderInAccrual, 
 	return o, nil
 }
 
+// Register ...
 func (s *OrderPoller) Register(ctx context.Context, user, num int) error {
 	err := s.store.Order().Register(ctx, user, num)
 	go func() {
