@@ -2,15 +2,19 @@ package main
 
 import (
 	"context"
-	"github.com/vlad-marlo/gophermart/pkg/logger"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/vlad-marlo/gophermart/pkg/logger"
+
 	"github.com/vlad-marlo/gophermart/internal/config"
+	"github.com/vlad-marlo/gophermart/internal/poller"
 	"github.com/vlad-marlo/gophermart/internal/server"
 	"github.com/vlad-marlo/gophermart/internal/store/sqlstore"
 )
+
+const pollerQueueLimit = 20
 
 func main() {
 	// init logger
@@ -28,10 +32,11 @@ func main() {
 	if err != nil {
 		l.Panicf("new sql store: %v", err)
 	}
+	p := poller.New(l, store, pollerQueueLimit)
 
 	go func() {
 		l.Infof("starting server on %v", cfg.BindAddr)
-		if err := server.Start(l, store, cfg); err != nil {
+		if err := server.Start(l, store, cfg, p); err != nil {
 			l.Panicf("start server: %v", err)
 		}
 	}()
@@ -55,6 +60,7 @@ func main() {
 		l.Info("default")
 	}
 
+	p.Close()
 	store.Close()
 	l.Info("server was closed successful")
 }

@@ -18,7 +18,7 @@ func TestStore(t *testing.T, con string) (store.Storage, func(...string)) {
 	t.Helper()
 
 	l := logger.GetLogger()
-	logger.DeleteLogFolderAndFile()
+	logger.DeleteLogFolderAndFile(t)
 
 	db, err := pgxpool.New(context.TODO(), con)
 	if err != nil {

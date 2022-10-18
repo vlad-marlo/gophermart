@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/vlad-marlo/gophermart/pkg/encryptor"
 )
@@ -14,12 +15,17 @@ func (s *server) error(w http.ResponseWriter, err error, msg, id string, status 
 }
 
 // GetUserIDFromRequest ...
-func GetUserIDFromRequest(r *http.Request, to *string) error {
+func GetUserIDFromRequest(r *http.Request) (int, error) {
 	user, err := r.Cookie(UserIDCookieName)
+	var to string
 	if err != nil {
-		return fmt.Errorf("get cookie: %v", err)
-	} else if err = encryptor.Decode(user.Value, to); err != nil {
-		return fmt.Errorf("encryptor: decode: %v", err)
+		return 0, fmt.Errorf("get cookie: %v", err)
+	} else if err = encryptor.Decode(user.Value, &to); err != nil {
+		return 0, fmt.Errorf("encryptor: decode: %v", err)
 	}
-	return nil
+	num, err := strconv.Atoi(to)
+	if err != nil {
+		return 0, fmt.Errorf("strconv Atoi: %v", err)
+	}
+	return num, nil
 }

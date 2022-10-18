@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/vlad-marlo/gophermart/internal/model"
 	"github.com/vlad-marlo/gophermart/pkg/logger"
@@ -16,7 +18,7 @@ type orderRepository struct {
 	l  logger.Logger
 }
 
-func (o *orderRepository) Register(ctx context.Context, user int, number int) error {
+func (o *orderRepository) Register(ctx context.Context, user, number int) error {
 	q := `
 		INSERT INTO 
 		    orders(id, user_id)
@@ -26,6 +28,11 @@ func (o *orderRepository) Register(ctx context.Context, user int, number int) er
 	o.l.WithField("request_id", middleware.GetReqID(ctx)).Trace(debugQuery(q))
 
 	if _, err := o.db.Exec(ctx, q, user, number); err != nil {
+		if pgErr, ok := err.(*pgconn.PgError); ok {
+			if pgErr.Code == pgerrcode.UniqueViolation {
+				return o.getErrByNum(ctx, user, number)
+			}
+		}
 		return fmt.Errorf("exec: %v", pgError(err))
 	}
 	return nil
@@ -60,4 +67,27 @@ func (o *orderRepository) GetAllByUser(ctx context.Context, user int) (res []*mo
 		res = append(res, o)
 	}
 	return res, nil
+}
+
+func (o *orderRepository) getErrByNum(ctx context.Context, user, number int) error {
+	q := `
+	SELECT EXISTS(
+		SELECT
+			* 
+		FROM 
+			orders 
+		WHERE
+			id = $1 AND user_id = $2
+	);
+	`
+	o.l.WithField("request_id", middleware.GetReqID(ctx)).Trace(debugQuery(q))
+
+	var status bool
+	if err := o.db.QueryRow(ctx, q, number, user).Scan(&status); err != nil {
+		return pgError(err)
+	}
+	if status {
+		return ErrAlreadyRegisteredByUser
+	}
+	return ErrAlreadyRegisteredByAnotherUser
 }

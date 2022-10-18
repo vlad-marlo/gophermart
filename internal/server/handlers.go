@@ -30,7 +30,7 @@ func (s *server) handleAuthRegister() http.HandlerFunc {
 
 		defer func() {
 			if err := r.Body.Close(); err != nil {
-				s.logger.Tracef("%v | handle auth register: close body: %v", id, err)
+				s.logger.Warnf("%v | handle auth register: close body: %v", id, err)
 			}
 		}()
 		data, err := io.ReadAll(r.Body)
@@ -70,7 +70,7 @@ func (s *server) handleAuthLogin() http.HandlerFunc {
 
 		defer func() {
 			if err := r.Body.Close(); err != nil {
-				s.logger.WithField(RequestIDLoggerField, id).Tracef("%v | handle auth login: close body: %v", id, err)
+				s.logger.WithField(RequestIDLoggerField, id).Warnf("%v | handle auth login: close body: %v", id, err)
 			}
 		}()
 
@@ -110,7 +110,9 @@ func (s *server) handleOrdersPost() http.HandlerFunc {
 		reqID := middleware.GetReqID(r.Context())
 
 		defer func() {
-			_ = r.Body.Close()
+			if err := r.Body.Close(); err != nil {
+				s.logger.WithField("request_id", reqID).Warnf("handle orders post: close body: %v", err)
+			}
 		}()
 
 		data, err := io.ReadAll(r.Body)
@@ -134,7 +136,18 @@ func (s *server) handleOrdersPost() http.HandlerFunc {
 			s.error(w, err, "", reqID, http.StatusUnprocessableEntity)
 			return
 		}
-		_, _ = w.Write([]byte(strNum))
+		u, err := GetUserIDFromRequest(r)
+		if err := s.poller.Register(r.Context(), u, num); err != nil {
+			if errors.Is(err, sqlstore.ErrAlreadyRegisteredByUser) {
+				w.WriteHeader(http.StatusOK)
+				return
+			} else if errors.Is(err, sqlstore.ErrAlreadyRegisteredByAnotherUser) {
+				w.WriteHeader(http.StatusConflict)
+				return
+			}
+			s.error(w, err, "", reqID, http.StatusInternalServerError)
+		}
+		w.WriteHeader(http.StatusAccepted)
 	}
 }
 
@@ -150,14 +163,13 @@ func (s *server) handleOrdersGet() http.HandlerFunc {
 func (s *server) handleBalanceGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		reqID := middleware.GetReqID(r.Context())
-		var uID string
 
-		if err := GetUserIDFromRequest(r, &uID); err != nil {
+		id, err := GetUserIDFromRequest(r)
+		if err != nil {
 			s.error(w, err, "internal server error", reqID, http.StatusInternalServerError)
 			return
 		}
 
-		id, err := strconv.Atoi(uID)
 		if err != nil {
 			s.error(w, err, "internal server error", reqID, http.StatusInternalServerError)
 			return
