@@ -19,24 +19,23 @@ const (
 // CheckAuthMiddleware ...
 func (s *server) CheckAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// check request reqID from request
+		reqID := middleware.GetReqID(r.Context())
 
-		// check request id from request
-		id := middleware.GetReqID(r.Context())
-
-		user, err := GetUserIDFromRequest(r)
+		id, err := GetUserIDFromRequest(r)
 		if err != nil {
-			s.logger.WithField(RequestIDLoggerField, id).Debug(err)
+			s.logger.WithField(RequestIDLoggerField, reqID).Debug(err)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
 		if err != nil {
-			s.error(w, fmt.Errorf("parse id from cookie: %v", err), sqlstore.ErrUncorrectLoginData.Error(), id, http.StatusUnauthorized)
+			s.error(w, fmt.Errorf("parse id from cookie: %v", err), sqlstore.ErrUncorrectLoginData.Error(), reqID, http.StatusUnauthorized)
 			return
 		}
 
-		if ok := s.store.User().ExistsWithID(r.Context(), user); !ok {
-			s.error(w, fmt.Errorf("auth middleware: exists with id: %v", err), InternalErrMsg, id, http.StatusInternalServerError)
+		if ok := s.store.User().ExistsWithID(r.Context(), id); !ok {
+			s.error(w, fmt.Errorf("auth middleware: exists with id: %v", err), InternalErrMsg, reqID, http.StatusInternalServerError)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
