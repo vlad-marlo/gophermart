@@ -92,7 +92,7 @@ func (o *orderRepository) getErrByNum(ctx context.Context, user, number int) err
 	return ErrAlreadyRegisteredByAnotherUser
 }
 
-func (o *orderRepository) ChangeStatus(ctx context.Context, m *model.OrderInAccrual) {
+func (o *orderRepository) ChangeStatus(ctx context.Context, m *model.OrderInAccrual) error {
 	q := `
 		UPDATE
 			orders
@@ -105,6 +105,7 @@ func (o *orderRepository) ChangeStatus(ctx context.Context, m *model.OrderInAccr
 	o.l.Debug(debugQuery(q))
 
 	if _, err := o.db.Exec(ctx, q, m.Status, m.Accrual, m.Number); err != nil {
-		o.l.Warnf("order repo: change status: %v", pgError(err))
+		return fmt.Errorf("exec: %v", pgError(err))
 	}
+	return nil
 }

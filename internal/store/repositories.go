@@ -23,7 +23,7 @@ type (
 	OrderRepository interface {
 		Register(ctx context.Context, user int, number int) error
 		GetAllByUser(ctx context.Context, user int) ([]*model.Order, error)
-		ChangeStatus(ctx context.Context, m *model.OrderInAccrual)
+		ChangeStatus(ctx context.Context, m *model.OrderInAccrual) error
 	}
 	WithdrawRepository interface {
 	}

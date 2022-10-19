@@ -10,6 +10,6 @@ type (
 	OrderInAccrual struct {
 		Number  int    `json:"order,string"`
 		Status  string `json:"status"`
-		Accrual int    `json:"accrual"`
+		Accrual int    `json:"accrual,omitempty"`
 	}
 )

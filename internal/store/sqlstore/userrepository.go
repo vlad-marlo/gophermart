@@ -53,12 +53,7 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 		RETURNING id;
 	`
 
-	r.l.WithFields(logrus.Fields{
-		"request_id": middleware.GetReqID(ctx),
-		"args": struct {
-			User *model.User `json:"user"`
-		}{u},
-	}).Trace(debugQuery(q))
+	r.l.WithField("request_id", middleware.GetReqID(ctx)).Trace(debugQuery(q))
 
 	if err := u.BeforeCreate(); err != nil {
 		return fmt.Errorf("before create: %v", err)
@@ -131,11 +126,11 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 	q := `
 		SELECT EXISTS(
 			SELECT
-				x.*
+				*
 			FROM
-				users AS x
+				users
 			WHERE
-				x.id=$1
+				id=$1
 		);
 	`
 	r.l.WithFields(logrus.Fields{
@@ -161,11 +156,11 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model.UserBalance, err error) {
 	q := `
 		SELECT 
-			x.balance, x.spent 
+			balance, spent 
 		FROM 
-			users x 
+			users 
 		WHERE 
-			x.id = $1;
+			id = $1;
 	`
 	r.l.WithFields(logrus.Fields{
 		"request_id": middleware.GetReqID(ctx),

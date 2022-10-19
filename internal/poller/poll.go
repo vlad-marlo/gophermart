@@ -60,31 +60,53 @@ func (s *OrderPoller) startPolling() {
 
 // pollWork ...
 func (s *OrderPoller) pollWork(t task) {
+	poll++
+	ctx := context.Background()
+	l := s.logger.WithField("poll", poll)
+
 	o, err := s.GetOrderFromAccrual(t.ID)
 	if err != nil {
-		s.logger.Debugf("pool work: %v", err)
+		l.Debugf("pool work: %v", err)
+
 		if errors.Is(err, ErrInternal) || errors.Is(err, ErrTooManyRequests) {
 			s.queue <- t
 			return
 		}
 		return
 	}
+
 	switch o.Status {
+
 	case "PROCESSING":
 		o.Status = model.StatusProcessing
-		s.store.Order().ChangeStatus(context.TODO(), o)
+		if err := s.store.Order().ChangeStatus(ctx, o); err != nil {
+			l.Debugf("change status: %v", err)
+		}
 		s.queue <- task{t.ID, t.User, model.StatusProcessing}
+
 	case "REGISTERED":
+		l.Debug("only registered")
 		s.queue <- t
+
 	case "INVALID":
 		o.Status = model.StatusInvalid
-		s.store.Order().ChangeStatus(context.TODO(), o)
+		if err := s.store.Order().ChangeStatus(ctx, o); err != nil {
+			l.Tracef("change status: %v", err)
+		}
+
 	case "PROCESSED":
 		o.Status = model.StatusProcessed
-		// TODO добавить пользователям баллов тута
-		s.store.Order().ChangeStatus(context.TODO(), o)
+		if o.Accrual > 0 {
+			if err := s.store.User().IncrementBalance(ctx, t.User, o.Accrual); err != nil {
+				l.Tracef("increment user balance: %v", err)
+			}
+		}
+		if err := s.store.Order().ChangeStatus(ctx, o); err != nil {
+			l.Tracef("change status: %v", err)
+		}
+
 	default:
-		s.logger.Warnf("got unknown status: %v", o.Status)
+		l.Warnf("got unknown status: %v", o.Status)
 	}
 }
 
@@ -104,7 +126,7 @@ func (s *OrderPoller) GetOrderFromAccrual(number int) (o *model.OrderInAccrual, 
 
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			s.logger.Warn("get order form accrual: response body close: %v", err)
+			s.logger.Warnf("get order form accrual: response body close: %v", err)
 		}
 	}()
 
