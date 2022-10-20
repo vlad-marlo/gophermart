@@ -9,8 +9,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/vlad-marlo/gophermart/pkg/logger"
-
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgerrcode"
 	"github.com/sirupsen/logrus"
@@ -19,7 +17,6 @@ import (
 
 type userRepository struct {
 	s *storage
-	l logger.Logger
 }
 
 // debugQuery ...
@@ -27,7 +24,7 @@ func debugQuery(q string) string {
 	q = strings.ReplaceAll(q, "\t", "")
 	q = strings.ReplaceAll(q, "\n", " ")
 	// this need if anywhere in query used spaces instead of \t
-	q = strings.ReplaceAll(q, "    ", " ")
+	q = strings.ReplaceAll(q, "    ", "")
 	return q
 }
 
@@ -52,7 +49,7 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 		RETURNING id;
 	`
 
-	r.l.WithField("request_id", middleware.GetReqID(ctx)).Trace(debugQuery(q))
+	r.s.logger.WithField("request_id", middleware.GetReqID(ctx)).Trace(debugQuery(q))
 
 	if err := u.BeforeCreate(); err != nil {
 		return fmt.Errorf("before create: %v", err)
@@ -85,7 +82,7 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 	id := middleware.GetReqID(ctx)
 
 	// trace request
-	r.l.WithFields(logrus.Fields{
+	r.s.logger.WithFields(logrus.Fields{
 		"request_id": id,
 	}).Trace(debugQuery(q))
 
@@ -101,13 +98,13 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 
 	// check error from query context
 	if err != nil {
-		r.l.WithField("request_id", id).Tracef("err=%s get id by login=%s", err, login)
+		r.s.logger.WithField("request_id", id).Tracef("err=%s get id by login=%s", err, login)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrUncorrectLoginData
 		}
 		return nil, fmt.Errorf("query context: %v", pgError(err))
 	}
-	r.l.WithField("request_id", id).Tracef("get id by login=%s", login)
+	r.s.logger.WithField("request_id", id).Tracef("get id by login=%s", login)
 
 	// getting data
 	if rows.Next() {
@@ -132,7 +129,7 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 				id=$1
 		);
 	`
-	r.l.WithFields(logrus.Fields{
+	r.s.logger.WithFields(logrus.Fields{
 		"request_id": middleware.GetReqID(ctx),
 	}).Trace(debugQuery(q))
 
@@ -142,7 +139,7 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 		id,
 	).Scan(&res); err != nil {
 		if pgErr, ok := err.(*pgconn.PgError); ok {
-			r.l.WithFields(logrus.Fields{
+			r.s.logger.WithFields(logrus.Fields{
 				"request_id": middleware.GetReqID(ctx),
 			}).Errorf("Exists with id: scan: %v", pgError(pgErr))
 		}
@@ -161,7 +158,7 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model
 		WHERE 
 			id = $1;
 	`
-	r.l.WithFields(logrus.Fields{
+	r.s.logger.WithFields(logrus.Fields{
 		"request_id": middleware.GetReqID(ctx),
 	}).Trace(debugQuery(q))
 

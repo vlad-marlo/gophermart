@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS orders(
 ALTER TABLE IF EXISTS
     orders
 ADD CONSTRAINT
-    fk_person_order
+    fk_user_order
 FOREIGN KEY (user_id) REFERENCES users(id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS

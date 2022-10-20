@@ -30,17 +30,19 @@ func TestStore(t *testing.T, con string) (store.Storage, func(...string)) {
 	}
 
 	s := &storage{
-		db:   db,
-		user: &userRepository{db, l},
-		l:    l,
+		db:     db,
+		logger: l,
 	}
+	s.user = &userRepository{s}
 	source := "file://../../../migrations"
 	if err := s.migrate(source, con); err != nil {
 		t.Fatalf("test store: sql migrate: %v", err)
 	}
 	return s, func(tables ...string) {
 		if len(tables) > 0 {
-			_, _ = db.Exec(context.TODO(), fmt.Sprintf("TRUNCATE %s CASCADE", strings.Join(tables, ", ")))
+			if _, err = db.Exec(context.TODO(), fmt.Sprintf("TRUNCATE %s CASCADE", strings.Join(tables, ", "))); err != nil {
+				s.logger.Warnf("defer func: trunctate test db: %v", pgError(err))
+			}
 		}
 		db.Close()
 	}

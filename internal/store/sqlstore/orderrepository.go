@@ -8,14 +8,11 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/vlad-marlo/gophermart/internal/model"
-	"github.com/vlad-marlo/gophermart/pkg/logger"
 )
 
 type orderRepository struct {
-	db *pgxpool.Pool
-	l  logger.Logger
+	s *storage
 }
 
 func (o *orderRepository) Register(ctx context.Context, user, number int) error {
@@ -25,9 +22,9 @@ func (o *orderRepository) Register(ctx context.Context, user, number int) error 
 		VALUES 
 			($1, $2);
 	`
-	o.l.WithField("request_id", middleware.GetReqID(ctx)).Trace(debugQuery(q))
+	o.s.logger.WithField("request_id", middleware.GetReqID(ctx)).Trace(debugQuery(q))
 
-	if _, err := o.db.Exec(ctx, q, user, number); err != nil {
+	if _, err := o.s.db.Exec(ctx, q, user, number); err != nil {
 		if pgErr, ok := err.(*pgconn.PgError); ok {
 			if pgErr.Code == pgerrcode.UniqueViolation {
 				return o.getErrByNum(ctx, user, number)
@@ -49,9 +46,9 @@ func (o *orderRepository) GetAllByUser(ctx context.Context, user int) (res []*mo
 		ORDER BY
 		    x.created_at ASC;
 	`
-	o.l.WithField("request_id", middleware.GetReqID(ctx)).Trace(debugQuery(q))
+	o.s.logger.WithField("request_id", middleware.GetReqID(ctx)).Trace(debugQuery(q))
 
-	rows, err := o.db.Query(ctx, q, user)
+	rows, err := o.s.db.Query(ctx, q, user)
 	if err != nil {
 		return nil, fmt.Errorf("query: %v", pgError(err))
 	}
@@ -80,10 +77,10 @@ func (o *orderRepository) getErrByNum(ctx context.Context, user, number int) err
 			id = $1 AND user_id = $2
 	);
 	`
-	o.l.WithField("request_id", middleware.GetReqID(ctx)).Trace(debugQuery(q))
+	o.s.logger.WithField("request_id", middleware.GetReqID(ctx)).Trace(debugQuery(q))
 
 	var status bool
-	if err := o.db.QueryRow(ctx, q, number, user).Scan(&status); err != nil {
+	if err := o.s.db.QueryRow(ctx, q, number, user).Scan(&status); err != nil {
 		return pgError(err)
 	}
 	if status {
@@ -102,9 +99,9 @@ func (o *orderRepository) ChangeStatus(ctx context.Context, m *model.OrderInAccr
 		WHERE
 			id = $3;
 	`
-	o.l.Debug(debugQuery(q))
+	o.s.logger.Debug(debugQuery(q))
 
-	if _, err := o.db.Exec(ctx, q, m.Status, m.Accrual, m.Number); err != nil {
+	if _, err := o.s.db.Exec(ctx, q, m.Status, m.Accrual, m.Number); err != nil {
 		return fmt.Errorf("exec: %v", pgError(err))
 	}
 	return nil

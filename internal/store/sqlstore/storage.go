@@ -17,12 +17,13 @@ import (
 )
 
 type storage struct {
-	db *pgxpool.Pool
-	l  logger.Logger
+	db     *pgxpool.Pool
+	logger logger.Logger
 
 	// repositories
-	user  store.UserRepository
-	order store.OrderRepository
+	user     store.UserRepository
+	order    store.OrderRepository
+	withdraw store.WithdrawRepository
 }
 
 // New ...
@@ -39,11 +40,12 @@ func New(ctx context.Context, l logger.Logger, c *config.Config) (store.Storage,
 	}
 
 	s := &storage{
-		db:    db,
-		user:  &userRepository{db, l},
-		order: &orderRepository{db, l},
-		l:     l,
+		db:     db,
+		logger: l,
 	}
+	s.user = &userRepository{s}
+	s.order = &orderRepository{s}
+	s.withdraw = &withdrawRepository{s}
 
 	if err := s.migrate("", c.DBURI); err != nil {
 		return nil, fmt.Errorf("migrate: %v", err)
@@ -61,11 +63,17 @@ func (s *storage) Order() store.OrderRepository {
 	return s.order
 }
 
+// Withdraws ...
+func (s *storage) Withdraws() store.WithdrawRepository {
+	return s.withdraw
+}
+
 // Close ...
 func (s *storage) Close() {
 	s.db.Close()
 }
 
+// migrate ...
 func (s *storage) migrate(sourceUrl, databaseUrl string) error {
 	if sourceUrl == "" {
 		sourceUrl = "file://migrations"
