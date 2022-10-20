@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/sirupsen/logrus"
 	"github.com/vlad-marlo/gophermart/internal/config"
 	"github.com/vlad-marlo/gophermart/internal/model"
 	"github.com/vlad-marlo/gophermart/internal/store"
@@ -16,8 +17,8 @@ import (
 
 type (
 	task struct {
-		ID, User int
-		Status   string
+		ID, User      int
+		Status, ReqID string
 	}
 	OrderPoller struct {
 		queue  chan task
@@ -62,7 +63,10 @@ func (s *OrderPoller) startPolling() {
 func (s *OrderPoller) pollWork(t task) {
 	poll++
 	ctx := context.Background()
-	l := s.logger.WithField("poll", poll)
+	l := s.logger.WithFields(logrus.Fields{
+		"poll":       poll,
+		"request_id": t.ReqID,
+	})
 
 	o, err := s.GetOrderFromAccrual(t.ID)
 	if err != nil {
@@ -82,7 +86,7 @@ func (s *OrderPoller) pollWork(t task) {
 		if err := s.store.Order().ChangeStatus(ctx, o); err != nil {
 			l.Debugf("change status: %v", err)
 		}
-		s.queue <- task{t.ID, t.User, model.StatusProcessing}
+		s.queue <- task{t.ID, t.User, model.StatusProcessing, t.ReqID}
 
 	case "REGISTERED":
 		l.Debug("only registered")
@@ -139,10 +143,10 @@ func (s *OrderPoller) GetOrderFromAccrual(number int) (o *model.OrderInAccrual, 
 }
 
 // Register ...
-func (s *OrderPoller) Register(ctx context.Context, user, num int) error {
+func (s *OrderPoller) Register(ctx context.Context, user, num int, reqID string) error {
 	err := s.store.Order().Register(ctx, user, num)
 	go func() {
-		s.queue <- task{num, user, model.StatusNew}
+		s.queue <- task{num, user, model.StatusNew, reqID}
 	}()
 	return err
 }

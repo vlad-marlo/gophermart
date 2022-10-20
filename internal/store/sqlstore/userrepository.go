@@ -13,14 +13,13 @@ import (
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgerrcode"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sirupsen/logrus"
 	"github.com/vlad-marlo/gophermart/internal/model"
 )
 
 type userRepository struct {
-	db *pgxpool.Pool
-	l  logger.Logger
+	s *storage
+	l logger.Logger
 }
 
 // debugQuery ...
@@ -59,7 +58,7 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 		return fmt.Errorf("before create: %v", err)
 	}
 
-	if err := r.db.QueryRow(
+	if err := r.s.db.QueryRow(
 		ctx,
 		q,
 		u.Login,
@@ -91,7 +90,7 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 	}).Trace(debugQuery(q))
 
 	// we don't need url model, just id
-	rows, err := r.db.Query(
+	rows, err := r.s.db.Query(
 		ctx,
 		q,
 		login,
@@ -137,7 +136,7 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 		"request_id": middleware.GetReqID(ctx),
 	}).Trace(debugQuery(q))
 
-	if err := r.db.QueryRow(
+	if err := r.s.db.QueryRow(
 		ctx,
 		q,
 		id,
@@ -166,7 +165,7 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model
 		"request_id": middleware.GetReqID(ctx),
 	}).Trace(debugQuery(q))
 
-	rows, err := r.db.Query(ctx, q, id)
+	rows, err := r.s.db.Query(ctx, q, id)
 	if err != nil {
 		return nil, pgError(err)
 	}
@@ -196,14 +195,8 @@ func (r *userRepository) IncrementBalance(ctx context.Context, id, add int) erro
 	if add <= 0 {
 		return fmt.Errorf("check args: %v", ErrUncorrectData)
 	}
-	if _, err := r.db.Exec(ctx, q, add, id); err != nil {
+	if _, err := r.s.db.Exec(ctx, q, add, id); err != nil {
 		return fmt.Errorf("db exec: %v", pgError(err))
 	}
-	return nil
-}
-
-// UseBalance ...
-func (r *userRepository) UseBalance(ctx context.Context, id, use int) error {
-	_, _ = r.db.Begin(ctx)
 	return nil
 }

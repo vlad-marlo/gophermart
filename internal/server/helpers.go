@@ -5,13 +5,21 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/sirupsen/logrus"
 	"github.com/vlad-marlo/gophermart/pkg/encryptor"
 )
 
 // error ...
 func (s *server) error(w http.ResponseWriter, err error, msg, id string, status int) {
 	http.Error(w, msg, status)
-	s.logger.WithField(RequestIDLoggerField, id).Error(err)
+	var lvl logrus.Level
+	switch {
+	case status > 500:
+		lvl = logrus.ErrorLevel
+	case status > 400:
+		lvl = logrus.WarnLevel
+	}
+	s.logger.WithField(RequestIDLoggerField, id).Log(lvl, err)
 }
 
 // GetUserIDFromRequest ...

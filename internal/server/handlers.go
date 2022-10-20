@@ -136,8 +136,9 @@ func (s *server) handleOrdersPost() http.HandlerFunc {
 			s.error(w, err, "", reqID, http.StatusUnprocessableEntity)
 			return
 		}
+
 		u, err := GetUserIDFromRequest(r)
-		if err := s.poller.Register(r.Context(), u, num); err != nil {
+		if err := s.poller.Register(r.Context(), u, num, reqID); err != nil {
 			if errors.Is(err, sqlstore.ErrAlreadyRegisteredByUser) {
 				w.WriteHeader(http.StatusOK)
 				return
@@ -154,8 +155,32 @@ func (s *server) handleOrdersPost() http.HandlerFunc {
 // handleOrdersGet ...
 func (s *server) handleOrdersGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO implement me
-		_, _ = w.Write([]byte("orders get"))
+		reqID := middleware.GetReqID(r.Context())
+
+		u, err := GetUserIDFromRequest(r)
+		if err != nil {
+			s.error(w, err, "", reqID, http.StatusInternalServerError)
+			return
+		}
+
+		ordrs, err := s.store.Order().GetAllByUser(r.Context(), u)
+		if err != nil {
+			s.error(w, err, "", reqID, http.StatusInternalServerError)
+			return
+		}
+		if len(ordrs) == 0 {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		data, err := json.Marshal(&ordrs)
+		if err != nil {
+			s.error(w, err, "", reqID, http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
 	}
 }
 
@@ -166,19 +191,21 @@ func (s *server) handleBalanceGet() http.HandlerFunc {
 
 		id, err := GetUserIDFromRequest(r)
 		if err != nil {
-			s.error(w, err, "internal server error", reqID, http.StatusInternalServerError)
+			s.error(w, err, "", reqID, http.StatusInternalServerError)
 			return
 		}
 
 		if err != nil {
-			s.error(w, err, "internal server error", reqID, http.StatusInternalServerError)
+			s.error(w, err, "", reqID, http.StatusInternalServerError)
 			return
 		}
 
 		b, err := s.store.User().GetBalance(r.Context(), id)
 		data, err := json.Marshal(b)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(data)
+		if _, err := w.Write(data); err != nil {
+			s.error(w, err, "", reqID, http.StatusInternalServerError)
+		}
 	}
 }
 

@@ -33,6 +33,8 @@ type (
 		WithFields(args map[string]interface{}) Logger
 		WithField(key string, value interface{}) Logger
 
+		Log(level logrus.Level, args ...interface{})
+
 		// Trace log methods
 		// Trace f
 		Trace(args ...interface{})
