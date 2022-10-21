@@ -195,13 +195,16 @@ func (s *server) handleBalanceGet() http.HandlerFunc {
 			return
 		}
 
+		b, err := s.store.User().GetBalance(r.Context(), id)
+		if err != nil {
+			s.error(w, err, "", reqID, http.StatusInternalServerError)
+		}
+		data, err := json.Marshal(b)
 		if err != nil {
 			s.error(w, err, "", reqID, http.StatusInternalServerError)
 			return
 		}
 
-		b, err := s.store.User().GetBalance(r.Context(), id)
-		data, err := json.Marshal(b)
 		w.Header().Set("Content-Type", "application/json")
 		if _, err := w.Write(data); err != nil {
 			s.error(w, err, "", reqID, http.StatusInternalServerError)
@@ -212,15 +215,68 @@ func (s *server) handleBalanceGet() http.HandlerFunc {
 // handleBalanceWithdrawPost ...
 func (s *server) handleBalanceWithdrawPost() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO implement me
-		_, _ = w.Write([]byte("withdraw balance"))
+		ctx := r.Context()
+		reqID := middleware.GetReqID(ctx)
+		var withdraw *model.Withdraw
+		defer func() {
+			if err := r.Body.Close(); err != nil {
+				s.error(w, err, "", reqID, http.StatusInternalServerError)
+			}
+		}()
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			s.error(w, err, "", reqID, http.StatusInternalServerError)
+			return
+		}
+		if err := json.Unmarshal(data, &withdraw); err != nil {
+			s.error(w, err, "", reqID, http.StatusBadRequest)
+			return
+		}
+		if err := s.store.Withdraws().Withdraw(ctx, withdraw); err != nil {
+			if errors.Is(err, sqlstore.ErrPaymentRequred) {
+				s.error(w, err, "", reqID, http.StatusPaymentRequired)
+				return
+			}
+			s.error(w, err, "", reqID, http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
 	}
 }
 
 // handleGetAllWithdraws ...
 func (s *server) handleGetAllWithdraws() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO implement me
-		_, _ = w.Write([]byte("get all withdraws"))
+		ctx := r.Context()
+		reqID := middleware.GetReqID(ctx)
+
+		id, err := GetUserIDFromRequest(r)
+		if err != nil {
+			s.error(w, err, "", reqID, http.StatusInternalServerError)
+			return
+		}
+
+		withdrawals, err := s.store.Withdraws().GetAllByUser(ctx, id)
+		if err != nil {
+			if errors.Is(err, sqlstore.ErrNoContent) {
+				s.error(w, err, "", reqID, http.StatusNoContent)
+				return
+			}
+
+			s.error(w, err, "", reqID, http.StatusInternalServerError)
+			return
+		}
+
+		data, err := json.Marshal(withdrawals)
+		if err != nil {
+			s.error(w, err, "", reqID, http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write(data); err != nil {
+			s.error(w, err, "", reqID, http.StatusInternalServerError)
+		}
 	}
 }

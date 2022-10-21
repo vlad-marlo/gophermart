@@ -9,4 +9,5 @@ var (
 	ErrAlreadyRegisteredByUser        = errors.New("registered by user")
 	ErrAlreadyRegisteredByAnotherUser = errors.New("registered by another user")
 	ErrNoContent                      = errors.New("no data to return")
+	ErrPaymentRequred                 = errors.New("payment required")
 )

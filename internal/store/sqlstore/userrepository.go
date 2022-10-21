@@ -39,6 +39,22 @@ func pgError(err error) error {
 	return err
 }
 
+func (r *userRepository) Migrate(ctx context.Context) error {
+	q := `
+	CREATE TABLE IF NOT EXISTS users(
+		id BIGSERIAL UNIQUE PRIMARY KEY NOT NULL,
+		login VARCHAR UNIQUE NOT NULL,
+		password VARCHAR NOT NULL,
+		balance money DEFAULT 0,
+		spent INT DEFAULT 0
+	);
+	`
+	if _, err := r.s.db.Exec(ctx, q); err != nil {
+		return pgError(err)
+	}
+	return nil
+}
+
 // Create ...
 func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 	q := `

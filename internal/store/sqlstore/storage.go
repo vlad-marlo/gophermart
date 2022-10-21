@@ -2,13 +2,10 @@ package sqlstore
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
-	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
-	_ "github.com/lib/pq"
 
 	pglogrus "github.com/jackc/pgx-logrus"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -32,12 +29,12 @@ type storage struct {
 func New(ctx context.Context, l logger.Logger, c *config.Config) (store.Storage, error) {
 	cfg, err := pgxpool.ParseConfig(c.DBURI)
 
-	// logger for ljafldlaf
-	tracelog := &tracelog.TraceLog{
+	// logger for pgx
+	t := &tracelog.TraceLog{
 		Logger:   pglogrus.NewLogger(l.GetEntry()),
 		LogLevel: tracelog.LogLevel(l.GetLevel()),
 	}
-	cfg.ConnConfig.Tracer = tracelog
+	cfg.ConnConfig.Tracer = t
 
 	db, err := pgxpool.NewWithConfig(ctx, cfg)
 
@@ -57,9 +54,10 @@ func New(ctx context.Context, l logger.Logger, c *config.Config) (store.Storage,
 	s.order = &orderRepository{s}
 	s.withdraw = &withdrawRepository{s}
 
-	if err := s.migrate("", c.DBURI); err != nil {
-		return nil, fmt.Errorf("migrate: %v", err)
-	}
+	s.user.Migrate(context.Background())
+	s.order.Migrate(context.Background())
+	s.withdraw.Migrate(context.Background())
+
 	return s, nil
 }
 
@@ -81,26 +79,4 @@ func (s *storage) Withdraws() store.WithdrawRepository {
 // Close ...
 func (s *storage) Close() {
 	s.db.Close()
-}
-
-// migrate ...
-func (s *storage) migrate(sourceUrl, databaseUrl string) error {
-	if sourceUrl == "" {
-		sourceUrl = "file://migrations"
-	}
-	m, err := migrate.New(
-		sourceUrl,
-		databaseUrl,
-	)
-	if err != nil {
-		return fmt.Errorf("new migrate example: %v", err)
-	}
-	defer func() {
-		_, _ = m.Close()
-	}()
-
-	if err = m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("up: %v", err)
-	}
-	return nil
 }

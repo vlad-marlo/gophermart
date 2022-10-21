@@ -8,11 +8,47 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/sirupsen/logrus"
 	"github.com/vlad-marlo/gophermart/internal/model"
 )
 
 type orderRepository struct {
 	s *storage
+}
+
+func (o *orderRepository) Migrate(ctx context.Context) error {
+	queryes := []string{
+		`CREATE TABLE IF NOT EXISTS orders(
+			pk BIGSERIAL PRIMARY KEY,
+			id INT UNIQUE,
+			user_id BIGINT,
+			status VARCHAR(50) DEFAULT 'NEW',
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			accrual FLOAT
+		);`,
+
+		`ALTER TABLE IF EXISTS
+			orders
+		ADD CONSTRAINT
+			fk_user_order
+		FOREIGN KEY (user_id) REFERENCES users(id);`,
+
+		`CREATE UNIQUE INDEX IF NOT EXISTS
+			index_user_id_orders
+		ON orders(user_id);`,
+	}
+
+	for i, q := range queryes {
+		o.s.logger.WithFields(logrus.Fields{
+			"sql":   debugQuery(q),
+			"query": i,
+		})
+		if _, err := o.s.db.Exec(ctx, q); err != nil {
+			return fmt.Errorf("exec query %d: %v", i, pgError(err))
+		}
+	}
+
+	return nil
 }
 
 func (o *orderRepository) Register(ctx context.Context, user, number int) error {
