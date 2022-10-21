@@ -8,3 +8,7 @@ type Withdraw struct {
 	ProcessedAt       time.Time `json:"-"`
 	ProcessedAtString string    `json:"processed_at,omitempty"`
 }
+
+func (w *Withdraw) ToRepresentation() {
+	w.ProcessedAtString = w.ProcessedAt.Format(time.RFC3339)
+}

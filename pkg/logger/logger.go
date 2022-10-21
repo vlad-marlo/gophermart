@@ -65,6 +65,8 @@ type (
 		Fatalf(format string, args ...interface{})
 		// Panicf ...
 		Panicf(format string, args ...interface{})
+		GetLevel() uint32
+		GetEntry() *logrus.Entry
 	}
 )
 
@@ -166,4 +168,13 @@ func (l *logger) WithFields(args map[string]interface{}) Logger {
 // WithField ...
 func (l *logger) WithField(key string, value interface{}) Logger {
 	return &logger{e.WithField(key, value)}
+}
+
+// GetEntry
+func (l *logger) GetEntry() *logrus.Entry {
+	return l.Entry
+}
+
+func (l *logger) GetLevel() uint32 {
+	return uint32(l.Entry.Level)
 }

@@ -10,7 +10,9 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 
+	pglogrus "github.com/jackc/pgx-logrus"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/tracelog"
 	"github.com/vlad-marlo/gophermart/internal/config"
 	"github.com/vlad-marlo/gophermart/internal/store"
 	"github.com/vlad-marlo/gophermart/pkg/logger"
@@ -29,6 +31,14 @@ type storage struct {
 // New ...
 func New(ctx context.Context, l logger.Logger, c *config.Config) (store.Storage, error) {
 	cfg, err := pgxpool.ParseConfig(c.DBURI)
+
+	// logger for ljafldlaf
+	tracelog := &tracelog.TraceLog{
+		Logger:   pglogrus.NewLogger(l.GetEntry()),
+		LogLevel: tracelog.LogLevel(l.GetLevel()),
+	}
+	cfg.ConnConfig.Tracer = tracelog
+
 	db, err := pgxpool.NewWithConfig(ctx, cfg)
 
 	if err != nil {
