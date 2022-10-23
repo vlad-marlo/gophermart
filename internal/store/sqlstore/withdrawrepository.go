@@ -5,9 +5,12 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5"
 	"github.com/vlad-marlo/gophermart/internal/model"
+	"github.com/vlad-marlo/gophermart/internal/store"
 )
 
 type withdrawRepository struct {
@@ -33,17 +36,89 @@ func (r *withdrawRepository) Migrate(ctx context.Context) error {
 		ADD CONSTRAINT
 			fk_order_withdraw
 		FOREIGN KEY (order_id) REFERENCES orders(id);`,
+		`
+		ALTER TABLE IF EXISTS withdrawals
+		ADD COLUMN IF NOT EXISTS processed BOOLEAN DEFAULT false;
+		`,
 	}
 
 	for i, q := range queries {
 		if _, err := r.s.db.Exec(ctx, q); err != nil {
-			return fmt.Errorf("query %d: %v", i, pgError(err))
+			if pgErr, ok := err.(*pgconn.PgError); !(ok && pgErr.Code == "42710") {
+				return fmt.Errorf("query %d: %v", i, pgError(err))
+			}
 		}
 	}
 	return nil
 }
 
-func (r *withdrawRepository) Withdraw(ctx context.Context, w *model.Withdraw) error {
+func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Withdraw) error {
+	var bal int
+	qGetBal := `
+	SELECT
+		balance
+	FROM
+		users
+	WHERE
+		id = $1;
+	`
+	qWithdraw := `
+	UPDATE
+		users
+	SET
+		balance = balance - $1
+	WHERE
+		id = $2;
+	`
+	qUpdateWithdraw := `
+	UPDATE
+		withdrawals
+	SET
+		processed_at=now(),
+		processed = true
+	WHERE
+		order_id = $1;
+	`
+	fields := map[string]interface{}{
+		"request_id": middleware.GetReqID(ctx),
+	}
+	l := r.s.logger.WithFields(fields)
+
+	tx, err := r.s.db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("tx begin: %v", pgError(err))
+	}
+	l.Trace("tx started")
+
+	defer func() {
+		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
+			l.Fatalf("unable to update drivers: %v", err)
+		}
+		l.Trace("tx rollbacked")
+	}()
+
+	if err := tx.QueryRow(ctx, qGetBal, user).Scan(&bal); err != nil {
+		return fmt.Errorf("get balance: %v", pgError(err))
+	}
+
+	l.Trace("successful get balance")
+	if bal < w.Sum {
+		return store.ErrPaymentRequired
+	}
+	l.Trace("balance is ok")
+
+	if _, err := tx.Exec(ctx, qWithdraw, w.Sum, user); err != nil {
+		return fmt.Errorf("withdraw balance: %v", pgError(err))
+	}
+	l.Trace("balance withdrawed")
+
+	if _, err := tx.Exec(ctx, qUpdateWithdraw, w.Order); err != nil {
+		l.WithField("sql", debugQuery(qUpdateWithdraw)).Tracef("%v", pgError(err))
+		return fmt.Errorf("update withdraw: %v", pgError(err))
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("update drivers: %v", pgError(err))
+	}
 	return nil
 }
 
@@ -54,15 +129,16 @@ func (r *withdrawRepository) GetAllByUser(ctx context.Context, user int) (w []*m
 	FROM 
 		withdrawals
 	WHERE
-		user_id = $1;
+		user_id = $1
+		AND processed = true
+	ORDER BY processed_at;
 	`
-	// TODO order by data
 	r.s.logger.WithField("request_id", middleware.GetReqID(ctx)).Trace("query: %v", debugQuery(q))
 
 	rows, err := r.s.db.Query(ctx, q, user)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrNoContent
+			return nil, store.ErrNoContent
 		}
 		return nil, fmt.Errorf("query: %v", pgError(err))
 	}
@@ -84,7 +160,7 @@ func (r *withdrawRepository) GetAllByUser(ctx context.Context, user int) (w []*m
 	}
 
 	if len(w) == 0 {
-		return nil, ErrNoContent
+		return nil, store.ErrNoContent
 	}
 
 	return w, nil

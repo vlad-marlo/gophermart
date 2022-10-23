@@ -15,7 +15,7 @@ type encryptor struct {
 	GCM   cipher.AEAD
 }
 
-var e *encryptor
+var e encryptor
 
 func init() {
 	key, err := generateRandom(aes.BlockSize)
@@ -43,7 +43,7 @@ func init() {
 		return
 	}
 
-	e = &encryptor{
+	e = encryptor{
 		nonce: nonce,
 		GCM:   aesGCM,
 	}

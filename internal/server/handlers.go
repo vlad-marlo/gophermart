@@ -13,8 +13,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/sirupsen/logrus"
 	"github.com/vlad-marlo/gophermart/internal/model"
-
-	"github.com/vlad-marlo/gophermart/internal/store/sqlstore"
+	"github.com/vlad-marlo/gophermart/internal/store"
 )
 
 const (
@@ -45,7 +44,7 @@ func (s *server) handleAuthRegister() http.HandlerFunc {
 		}
 
 		if err := s.store.User().Create(r.Context(), u); err != nil {
-			if errors.Is(err, sqlstore.ErrLoginAlreadyInUse) {
+			if errors.Is(err, store.ErrLoginAlreadyInUse) {
 				s.error(w, fmt.Errorf("auth register: create user: %v", err), err.Error(), id, http.StatusConflict)
 				return
 			}
@@ -87,16 +86,17 @@ func (s *server) handleAuthLogin() http.HandlerFunc {
 
 		user, err := s.store.User().GetByLogin(r.Context(), req.Login)
 		if err != nil {
-			s.error(w, fmt.Errorf("login: unauthorized: %v", err), sqlstore.ErrUncorrectLoginData.Error(), id, http.StatusUnauthorized)
+			s.error(w, fmt.Errorf("login: unauthorized: %v", err), store.ErrIncorrectLoginData.Error(), id, http.StatusUnauthorized)
 			return
 		}
 		if err := user.ComparePassword(req.Password); err != nil {
-			s.error(w, fmt.Errorf("login: compare pass: unauthorized: %v", err), sqlstore.ErrUncorrectLoginData.Error(), id, http.StatusUnauthorized)
+			s.error(w, fmt.Errorf("login: compare pass: unauthorized: %v", err), store.ErrIncorrectLoginData.Error(), id, http.StatusUnauthorized)
 			return
 		}
 
 		s.logger.WithFields(logrus.Fields{
 			UserIDLoggerField: user.ID,
+			"request_id":      id,
 		}).Trace("successful authenticated")
 
 		s.authenticate(w, user.ID)
@@ -120,33 +120,46 @@ func (s *server) handleOrdersPost() http.HandlerFunc {
 			s.error(w, err, "", reqID, http.StatusBadRequest)
 			return
 		}
+		fields := map[string]interface{}{
+			"request_id": reqID,
+		}
 		strNum := string(data)
 		if strNum == "" {
 			s.error(w, fmt.Errorf("bad request data"), "", reqID, http.StatusBadRequest)
 			return
 		}
+		s.logger.WithFields(fields).Trace("successful read data")
 
 		num, err := strconv.Atoi(strNum)
 		if err != nil {
 			s.error(w, err, "", reqID, http.StatusBadRequest)
 			return
 		}
+		s.logger.WithFields(fields).Trace("successful get number")
 
 		if ok := luhn.Valid(num); !ok {
 			s.error(w, err, "", reqID, http.StatusUnprocessableEntity)
 			return
 		}
+		s.logger.WithFields(fields).Trace("request is valid")
 
 		u, err := GetUserIDFromRequest(r)
-		if err := s.poller.Register(r.Context(), u, num, reqID); err != nil {
-			if errors.Is(err, sqlstore.ErrAlreadyRegisteredByUser) {
+		s.logger.WithFields(fields).Tracef("get user id %d %v", u, err)
+		if err != nil {
+			s.error(w, err, "", reqID, http.StatusUnauthorized)
+			return
+		}
+		if err := s.poller.Register(r.Context(), u, num); err != nil {
+			s.logger.WithFields(fields).Tracef("poller register err", err)
+			if errors.Is(err, store.ErrAlreadyRegisteredByUser) {
 				w.WriteHeader(http.StatusOK)
 				return
-			} else if errors.Is(err, sqlstore.ErrAlreadyRegisteredByAnotherUser) {
+			} else if errors.Is(err, store.ErrAlreadyRegisteredByAnotherUser) {
 				w.WriteHeader(http.StatusConflict)
 				return
 			}
 			s.error(w, err, "", reqID, http.StatusInternalServerError)
+			return
 		}
 		w.WriteHeader(http.StatusAccepted)
 	}
@@ -209,6 +222,10 @@ func (s *server) handleBalanceGet() http.HandlerFunc {
 		if _, err := w.Write(data); err != nil {
 			s.error(w, err, "", reqID, http.StatusInternalServerError)
 		}
+		s.logger.WithFields(map[string]interface{}{
+			"request_id": reqID,
+			"user":       id,
+		})
 	}
 }
 
@@ -217,6 +234,11 @@ func (s *server) handleBalanceWithdrawPost() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		reqID := middleware.GetReqID(ctx)
+		user, err := GetUserIDFromRequest(r)
+		if err != nil {
+			s.error(w, err, "", reqID, http.StatusUnauthorized)
+			return
+		}
 		var withdraw *model.Withdraw
 		defer func() {
 			if err := r.Body.Close(); err != nil {
@@ -232,8 +254,8 @@ func (s *server) handleBalanceWithdrawPost() http.HandlerFunc {
 			s.error(w, err, "", reqID, http.StatusBadRequest)
 			return
 		}
-		if err := s.store.Withdraws().Withdraw(ctx, withdraw); err != nil {
-			if errors.Is(err, sqlstore.ErrPaymentRequred) {
+		if err := s.store.Withdraws().Withdraw(ctx, user, withdraw); err != nil {
+			if errors.Is(err, store.ErrPaymentRequired) {
 				s.error(w, err, "", reqID, http.StatusPaymentRequired)
 				return
 			}
@@ -258,7 +280,7 @@ func (s *server) handleGetAllWithdraws() http.HandlerFunc {
 
 		withdrawals, err := s.store.Withdraws().GetAllByUser(ctx, id)
 		if err != nil {
-			if errors.Is(err, sqlstore.ErrNoContent) {
+			if errors.Is(err, store.ErrNoContent) {
 				s.error(w, err, "", reqID, http.StatusNoContent)
 				return
 			}

@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/sirupsen/logrus"
 	"github.com/vlad-marlo/gophermart/internal/model"
+	"github.com/vlad-marlo/gophermart/internal/store"
 )
 
 type orderRepository struct {
@@ -17,14 +18,14 @@ type orderRepository struct {
 }
 
 func (o *orderRepository) Migrate(ctx context.Context) error {
-	queryes := []string{
+	queries := []string{
 		`CREATE TABLE IF NOT EXISTS orders(
 			pk BIGSERIAL PRIMARY KEY,
 			id INT UNIQUE,
 			user_id BIGINT,
 			status VARCHAR(50) DEFAULT 'NEW',
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			accrual FLOAT
+			accrual money
 		);`,
 
 		`ALTER TABLE IF EXISTS
@@ -38,13 +39,15 @@ func (o *orderRepository) Migrate(ctx context.Context) error {
 		ON orders(user_id);`,
 	}
 
-	for i, q := range queryes {
+	for i, q := range queries {
 		o.s.logger.WithFields(logrus.Fields{
 			"sql":   debugQuery(q),
-			"query": i,
+			"query": i + 1,
 		})
 		if _, err := o.s.db.Exec(ctx, q); err != nil {
-			return fmt.Errorf("exec query %d: %v", i, pgError(err))
+			if pgErr, ok := err.(*pgconn.PgError); !(ok && pgErr.Code == "42710") {
+				return fmt.Errorf("exec query %d: %v", i+1, pgError(err))
+			}
 		}
 	}
 
@@ -120,12 +123,12 @@ func (o *orderRepository) getErrByNum(ctx context.Context, user, number int) err
 		return pgError(err)
 	}
 	if status {
-		return ErrAlreadyRegisteredByUser
+		return store.ErrAlreadyRegisteredByUser
 	}
-	return ErrAlreadyRegisteredByAnotherUser
+	return store.ErrAlreadyRegisteredByAnotherUser
 }
 
-func (o *orderRepository) ChangeStatus(ctx context.Context, m *model.OrderInAccrual) error {
+func (o *orderRepository) ChangeStatus(ctx context.Context, user int, m *model.OrderInAccrual) error {
 	q := `
 		UPDATE
 			orders
@@ -133,11 +136,11 @@ func (o *orderRepository) ChangeStatus(ctx context.Context, m *model.OrderInAccr
 			status = $1,
 			accrual = $2
 		WHERE
-			id = $3;
+			id = $3 AND user_id = $4;
 	`
 	o.s.logger.Debug(debugQuery(q))
 
-	if _, err := o.s.db.Exec(ctx, q, m.Status, m.Accrual, m.Number); err != nil {
+	if _, err := o.s.db.Exec(ctx, q, m.Status, m.Accrual, m.Number, user); err != nil {
 		return fmt.Errorf("exec: %v", pgError(err))
 	}
 	return nil

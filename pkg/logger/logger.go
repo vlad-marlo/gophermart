@@ -81,7 +81,7 @@ func init() {
 
 	textFormatter = &logrus.TextFormatter{
 		FullTimestamp: true,
-		DisableColors: true,
+		ForceColors:   true,
 		CallerPrettyfier: func(f *runtime.Frame) (fun string, file string) {
 			filename := path.Base(f.File)
 			return f.Function, fmt.Sprintf("%s:%d", filename, f.Line)

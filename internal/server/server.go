@@ -30,6 +30,7 @@ func Start(l logger.Logger, store store.Storage, config *config.Config, p *polle
 		config: config,
 		Router: chi.NewMux(),
 		logger: l,
+		poller: p,
 	}
 
 	s.configureMiddlewares()

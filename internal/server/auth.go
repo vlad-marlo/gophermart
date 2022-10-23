@@ -7,7 +7,6 @@ import (
 	"github.com/vlad-marlo/gophermart/pkg/encryptor"
 
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/vlad-marlo/gophermart/internal/store/sqlstore"
 )
 
 const (
@@ -30,7 +29,7 @@ func (s *server) CheckAuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		if err != nil {
-			s.error(w, fmt.Errorf("parse id from cookie: %v", err), sqlstore.ErrUncorrectLoginData.Error(), reqID, http.StatusUnauthorized)
+			s.error(w, fmt.Errorf("parse id from cookie: %v", err), "", reqID, http.StatusUnauthorized)
 			return
 		}
 

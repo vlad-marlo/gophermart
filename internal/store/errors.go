@@ -1,13 +1,13 @@
-package sqlstore
+package store
 
 import "errors"
 
 var (
 	ErrLoginAlreadyInUse              = errors.New("login already in use")
-	ErrUncorrectLoginData             = errors.New("uncorrect login data")
-	ErrUncorrectData                  = errors.New("uncorrect arguments")
+	ErrIncorrectLoginData             = errors.New("uncorrect login data")
+	ErrIncorrectData                  = errors.New("uncorrect arguments")
 	ErrAlreadyRegisteredByUser        = errors.New("registered by user")
 	ErrAlreadyRegisteredByAnotherUser = errors.New("registered by another user")
 	ErrNoContent                      = errors.New("no data to return")
-	ErrPaymentRequred                 = errors.New("payment required")
+	ErrPaymentRequired                = errors.New("payment required")
 )

@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgerrcode"
 	"github.com/sirupsen/logrus"
 	"github.com/vlad-marlo/gophermart/internal/model"
+	"github.com/vlad-marlo/gophermart/internal/store"
 )
 
 type userRepository struct {
@@ -39,6 +40,7 @@ func pgError(err error) error {
 	return err
 }
 
+// Migrate ...
 func (r *userRepository) Migrate(ctx context.Context) error {
 	q := `
 	CREATE TABLE IF NOT EXISTS users(
@@ -78,7 +80,7 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 		u.EncryptedPassword,
 	).Scan(&u.ID); err != nil {
 		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == pgerrcode.UniqueViolation {
-			return ErrLoginAlreadyInUse
+			return store.ErrLoginAlreadyInUse
 		}
 		return pgError(err)
 	}
@@ -116,7 +118,7 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 	if err != nil {
 		r.s.logger.WithField("request_id", id).Tracef("err=%s get id by login=%s", err, login)
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrUncorrectLoginData
+			return nil, store.ErrIncorrectLoginData
 		}
 		return nil, fmt.Errorf("query context: %v", pgError(err))
 	}
@@ -129,7 +131,7 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 		}
 		return u, nil
 	}
-	return nil, ErrUncorrectLoginData
+	return nil, store.ErrIncorrectLoginData
 }
 
 // ExistsWithID ...
@@ -192,7 +194,7 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model
 		return balance, nil
 	}
 
-	return nil, sql.ErrNoRows
+	return nil, store.ErrNoContent
 }
 
 // IncrementBalance ...
@@ -206,7 +208,7 @@ func (r *userRepository) IncrementBalance(ctx context.Context, id, add int) erro
 			id = $2;
 	`
 	if add <= 0 {
-		return fmt.Errorf("check args: %v", ErrUncorrectData)
+		return fmt.Errorf("check args: %v", store.ErrIncorrectData)
 	}
 	if _, err := r.s.db.Exec(ctx, q, add, id); err != nil {
 		return fmt.Errorf("db exec: %v", pgError(err))

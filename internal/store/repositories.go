@@ -24,13 +24,13 @@ type (
 	}
 	OrderRepository interface {
 		Migrate(ctx context.Context) error
-		Register(ctx context.Context, user int, number int) error
-		GetAllByUser(ctx context.Context, user int) ([]*model.Order, error)
-		ChangeStatus(ctx context.Context, m *model.OrderInAccrual) error
+		Register(ctx context.Context, user, number int) error
+		GetAllByUser(ctx context.Context, user int) (res []*model.Order, err error)
+		ChangeStatus(ctx context.Context, user int, m *model.OrderInAccrual) error
 	}
 	WithdrawRepository interface {
 		Migrate(ctx context.Context) error
-		Withdraw(ctx context.Context, w *model.Withdraw) error
+		Withdraw(ctx context.Context, user int, w *model.Withdraw) error
 		GetAllByUser(ctx context.Context, user int) (w []*model.Withdraw, err error)
 	}
 )

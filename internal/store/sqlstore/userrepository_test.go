@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/vlad-marlo/gophermart/internal/model"
+	"github.com/vlad-marlo/gophermart/internal/store"
 	"github.com/vlad-marlo/gophermart/internal/store/sqlstore"
 )
 
@@ -69,13 +70,13 @@ func TestUserRepository_GetByLogin_UnExisting(t *testing.T) {
 	}
 
 	// init storage for test
-	store, teardown := sqlstore.TestStore(t, conStr)
+	s, teardown := sqlstore.TestStore(t, conStr)
 	defer teardown("users")
 	defer logger.DeleteLogFolderAndFile(t)
 	for _, tc := range tt {
 		t.Run(tc, func(t *testing.T) {
-			_, err := store.User().GetByLogin(context.TODO(), tc)
-			require.ErrorIs(t, err, sqlstore.ErrUncorrectLoginData)
+			_, err := s.User().GetByLogin(context.TODO(), tc)
+			require.ErrorIs(t, err, store.ErrIncorrectLoginData)
 		})
 	}
 }

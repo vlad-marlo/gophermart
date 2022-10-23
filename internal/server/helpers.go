@@ -25,13 +25,14 @@ func (s *server) error(w http.ResponseWriter, err error, msg, id string, status 
 // GetUserIDFromRequest ...
 func GetUserIDFromRequest(r *http.Request) (int, error) {
 	user, err := r.Cookie(UserIDCookieName)
-	var to string
+	to := new(string)
 	if err != nil {
 		return 0, fmt.Errorf("get cookie: %v", err)
-	} else if err = encryptor.Decode(user.Value, &to); err != nil {
+	}
+	if err := encryptor.Decode(user.Value, to); err != nil {
 		return 0, fmt.Errorf("encryptor: decode: %v", err)
 	}
-	num, err := strconv.Atoi(to)
+	num, err := strconv.Atoi(*to)
 	if err != nil {
 		return 0, fmt.Errorf("strconv Atoi: %v", err)
 	}

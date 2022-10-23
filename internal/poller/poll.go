@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/sirupsen/logrus"
 	"github.com/vlad-marlo/gophermart/internal/config"
 	"github.com/vlad-marlo/gophermart/internal/model"
@@ -21,7 +22,7 @@ type (
 		Status, ReqID string
 	}
 	OrderPoller struct {
-		queue  chan task
+		queue  chan *task
 		store  store.Storage
 		logger logger.Logger
 		config *config.Config
@@ -33,7 +34,7 @@ var poll uint64 = 0
 
 func New(l logger.Logger, s store.Storage, limit int) *OrderPoller {
 	o := &OrderPoller{
-		queue:  make(chan task, 2*limit),
+		queue:  make(chan *task, 2*limit),
 		store:  s,
 		logger: l,
 		limit:  limit,
@@ -54,13 +55,16 @@ func (s *OrderPoller) startPolling() {
 		go func() {
 			for t := range s.queue {
 				s.pollWork(t)
+				if rcvrd := recover(); rcvrd != nil {
+					s.logger.Errorf("recovered panic in poller: %v", rcvrd)
+				}
 			}
 		}()
 	}
 }
 
 // pollWork ...
-func (s *OrderPoller) pollWork(t task) {
+func (s *OrderPoller) pollWork(t *task) {
 	poll++
 	ctx := context.Background()
 	l := s.logger.WithFields(logrus.Fields{
@@ -83,10 +87,10 @@ func (s *OrderPoller) pollWork(t task) {
 
 	case "PROCESSING":
 		o.Status = model.StatusProcessing
-		if err := s.store.Order().ChangeStatus(ctx, o); err != nil {
+		if err := s.store.Order().ChangeStatus(ctx, t.User, o); err != nil {
 			l.Debugf("change status: %v", err)
 		}
-		s.queue <- task{t.ID, t.User, model.StatusProcessing, t.ReqID}
+		s.queue <- &task{t.ID, t.User, model.StatusProcessing, t.ReqID}
 
 	case "REGISTERED":
 		l.Debug("only registered")
@@ -94,7 +98,7 @@ func (s *OrderPoller) pollWork(t task) {
 
 	case "INVALID":
 		o.Status = model.StatusInvalid
-		if err := s.store.Order().ChangeStatus(ctx, o); err != nil {
+		if err := s.store.Order().ChangeStatus(ctx, t.User, o); err != nil {
 			l.Tracef("change status: %v", err)
 		}
 
@@ -105,7 +109,7 @@ func (s *OrderPoller) pollWork(t task) {
 				l.Tracef("increment user balance: %v", err)
 			}
 		}
-		if err := s.store.Order().ChangeStatus(ctx, o); err != nil {
+		if err := s.store.Order().ChangeStatus(ctx, t.User, o); err != nil {
 			l.Tracef("change status: %v", err)
 		}
 
@@ -143,10 +147,11 @@ func (s *OrderPoller) GetOrderFromAccrual(number int) (o *model.OrderInAccrual, 
 }
 
 // Register ...
-func (s *OrderPoller) Register(ctx context.Context, user, num int, reqID string) error {
+func (s *OrderPoller) Register(ctx context.Context, user, num int) error {
+	s.logger.WithField("request_id", middleware.GetReqID(ctx)).Trace(s.store != nil)
 	err := s.store.Order().Register(ctx, user, num)
 	go func() {
-		s.queue <- task{num, user, model.StatusNew, reqID}
+		s.queue <- &task{num, user, model.StatusNew, middleware.GetReqID(ctx)}
 	}()
 	return err
 }

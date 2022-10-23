@@ -54,9 +54,15 @@ func New(ctx context.Context, l logger.Logger, c *config.Config) (store.Storage,
 	s.order = &orderRepository{s}
 	s.withdraw = &withdrawRepository{s}
 
-	s.user.Migrate(context.Background())
-	s.order.Migrate(context.Background())
-	s.withdraw.Migrate(context.Background())
+	if err := s.user.Migrate(context.Background()); err != nil {
+		return nil, fmt.Errorf("user: migrate: %v", err)
+	}
+	if err := s.order.Migrate(context.Background()); err != nil {
+		return nil, fmt.Errorf("orders: migrate: %v", err)
+	}
+	if err := s.withdraw.Migrate(context.Background()); err != nil {
+		return nil, fmt.Errorf("withdraws: migrate: %v", err)
+	}
 
 	return s, nil
 }
