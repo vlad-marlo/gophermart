@@ -168,29 +168,38 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 
 // GetBalance ...
 func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model.UserBalance, err error) {
+	balance = new(model.UserBalance)
 	q := `
 		SELECT 
-			balance, spent 
+			balance::numeric::float8, spent
 		FROM 
 			users 
 		WHERE 
 			id = $1;
 	`
-	r.s.logger.WithFields(logrus.Fields{
+	l := r.s.logger.WithFields(logrus.Fields{
 		"request_id": middleware.GetReqID(ctx),
-	}).Trace(debugQuery(q))
+	})
 
+	l.Trace(debugQuery(q))
 	rows, err := r.s.db.Query(ctx, q, id)
 	if err != nil {
 		return nil, pgError(err)
 	}
+	l.Trace("successful get balance")
 
 	defer rows.Close()
 
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows err: %v", err)
+	}
+	l.Trace("rows err is nil")
+
 	for rows.Next() {
-		if err := pgError(rows.Scan(&balance.Current, &balance.Withdrawn)); err != nil {
-			return nil, err
+		if err := rows.Scan(&balance.Current, &balance.Withdrawn); err != nil {
+			return nil, fmt.Errorf("rows scan: %v", pgError(err))
 		}
+		l.Trace("return balance")
 		return balance, nil
 	}
 

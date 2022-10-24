@@ -15,7 +15,7 @@ func Recover(logger logger.Logger) func(next http.Handler) http.Handler {
 				if rvr := recover(); rvr != nil && rvr != http.ErrAbortHandler {
 
 					id := middleware.GetReqID(r.Context())
-					logger.WithField("request_id", id).Tracef("recover covered: %v", rvr)
+					logger.WithField("request_id", id).Errorf("recover covered: %v", rvr)
 
 					w.WriteHeader(http.StatusInternalServerError)
 				}

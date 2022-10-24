@@ -149,6 +149,7 @@ func (s *server) handleOrdersPost() http.HandlerFunc {
 			s.error(w, err, "", reqID, http.StatusUnauthorized)
 			return
 		}
+
 		if err := s.poller.Register(r.Context(), u, num); err != nil {
 			s.logger.WithFields(fields).Tracef("poller register err", err)
 			if errors.Is(err, store.ErrAlreadyRegisteredByUser) {
@@ -211,6 +212,7 @@ func (s *server) handleBalanceGet() http.HandlerFunc {
 		b, err := s.store.User().GetBalance(r.Context(), id)
 		if err != nil {
 			s.error(w, err, "", reqID, http.StatusInternalServerError)
+			return
 		}
 		data, err := json.Marshal(b)
 		if err != nil {

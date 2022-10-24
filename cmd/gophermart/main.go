@@ -18,26 +18,25 @@ const pollerQueueLimit = 20
 
 func main() {
 	// init logger
-	l := logger.GetLogger()
+	log := logger.GetLogger()
 
 	// init cfg
 	cfg, err := config.New()
 	if err != nil {
-		l.Panicf("new config: %v", err)
+		log.Panicf("new config: %v", err)
 	}
 
 	ctx := context.Background()
-	// init store
-	store, err := sqlstore.New(ctx, l, cfg)
+	// init storage
+	storage, err := sqlstore.New(ctx, log, cfg)
 	if err != nil {
-		l.Panicf("new sql store: %v", err)
+		log.Panicf("new sql store: %v", err)
 	}
-	p := poller.New(l, store, pollerQueueLimit)
-
+	p := poller.New(log, storage, pollerQueueLimit)
 	go func() {
-		l.Infof("starting server on %v", cfg.BindAddr)
-		if err := server.Start(l, store, cfg, p); err != nil {
-			l.Panicf("start server: %v", err)
+		log.Infof("starting server on %v", cfg.BindAddr)
+		if err := server.Start(log, storage, cfg, p); err != nil {
+			log.Panicf("start server: %v", err)
 		}
 	}()
 
@@ -49,18 +48,18 @@ func main() {
 	sig := <-interrupt
 	switch sig {
 	case os.Interrupt:
-		l.Info("got interrupt signal")
+		log.Info("got interrupt signal")
 	case syscall.SIGTERM:
-		l.Info("got terminate signal")
+		log.Info("got terminate signal")
 	case os.Kill:
-		l.Info("got kill signal")
+		log.Info("got kill signal")
 	case syscall.SIGINT:
-		l.Infof("got int signal: %s", sig.String())
+		log.Infof("got int signal: %s", sig.String())
 	default:
-		l.Info("default")
+		log.Info("default")
 	}
 
 	p.Close()
-	store.Close()
-	l.Info("server was closed successful")
+	storage.Close()
+	log.Info("server was closed successful")
 }
