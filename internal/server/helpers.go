@@ -10,7 +10,7 @@ import (
 )
 
 // error ...
-func (s *server) error(w http.ResponseWriter, err error, msg, id string, status int) {
+func (s *server) error(w http.ResponseWriter, err error, msg string, fields map[string]interface{}, status int) {
 	http.Error(w, msg, status)
 	var lvl logrus.Level
 	switch {
@@ -19,7 +19,7 @@ func (s *server) error(w http.ResponseWriter, err error, msg, id string, status 
 	case status > 400:
 		lvl = logrus.WarnLevel
 	}
-	s.logger.WithField(RequestIDLoggerField, id).Log(lvl, err)
+	s.logger.WithFields(fields).Log(lvl, err)
 }
 
 // GetUserIDFromRequest ...

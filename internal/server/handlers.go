@@ -11,7 +11,6 @@ import (
 	"github.com/vlad-marlo/gophermart/pkg/luhn"
 
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/sirupsen/logrus"
 	"github.com/vlad-marlo/gophermart/internal/model"
 	"github.com/vlad-marlo/gophermart/internal/store"
 )
@@ -26,35 +25,38 @@ func (s *server) handleAuthRegister() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var u *model.User
 		id := middleware.GetReqID(r.Context())
+		fields := map[string]interface{}{
+			"request_id": id,
+		}
+		l := s.logger.WithFields(fields)
+		fields["handler"] = "auth register"
 
 		defer func() {
 			if err := r.Body.Close(); err != nil {
-				s.logger.Warnf("%v | handle auth register: close body: %v", id, err)
+				l.Warnf("handle auth register: close body: %v", err)
 			}
 		}()
 		data, err := io.ReadAll(r.Body)
 		if err != nil {
-			s.error(w, fmt.Errorf("auth: register: read data from request: %v", err), InternalErrMsg, id, http.StatusInternalServerError)
+			s.error(w, fmt.Errorf("auth: register: read data from request: %v", err), InternalErrMsg, fields, http.StatusInternalServerError)
 			return
 		}
 
 		if err := json.Unmarshal(data, &u); err != nil {
-			s.error(w, fmt.Errorf("json unmarshal: %v", err), BadRequestMsg, id, http.StatusBadRequest)
+			s.error(w, fmt.Errorf("json unmarshal: %v", err), BadRequestMsg, fields, http.StatusBadRequest)
 			return
 		}
 
 		if err := s.store.User().Create(r.Context(), u); err != nil {
 			if errors.Is(err, store.ErrLoginAlreadyInUse) {
-				s.error(w, fmt.Errorf("auth register: create user: %v", err), err.Error(), id, http.StatusConflict)
+				s.error(w, fmt.Errorf("auth register: create user: %v", err), err.Error(), fields, http.StatusConflict)
 				return
 			}
-			s.error(w, fmt.Errorf("auth register: create user: %v", err), InternalErrMsg, id, http.StatusInternalServerError)
+			s.error(w, fmt.Errorf("auth register: create user: %v", err), InternalErrMsg, fields, http.StatusInternalServerError)
 			return
 		}
 
-		s.logger.WithFields(logrus.Fields{
-			UserIDLoggerField: u.ID,
-		}).Trace("successful authenticated")
+		l.Trace("successful authenticated")
 
 		s.authenticate(w, u.ID)
 		w.WriteHeader(http.StatusOK)
@@ -66,38 +68,42 @@ func (s *server) handleAuthLogin() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req *model.User
 		id := middleware.GetReqID(r.Context())
+		fields := map[string]interface{}{
+			"request_id": id,
+		}
+		l := s.logger.WithFields(fields)
+		fields["handler"] = "auth login"
 
 		defer func() {
 			if err := r.Body.Close(); err != nil {
-				s.logger.WithField(RequestIDLoggerField, id).Warnf("%v | handle auth login: close body: %v", id, err)
+				l.Warnf("handle auth login: close body: %w", err)
 			}
 		}()
 
 		data, err := io.ReadAll(r.Body)
 		if err != nil {
-			s.error(w, fmt.Errorf("auth: register: read data from request: %v", err), "internal server error", id, http.StatusInternalServerError)
+			s.error(w, fmt.Errorf("auth: register: read data from request: %v", err), "internal server error", fields, http.StatusInternalServerError)
 			return
 		}
 
 		if err := json.Unmarshal(data, &req); err != nil {
-			s.error(w, fmt.Errorf("login: uncorrect request data: %v", err), "bad request", id, http.StatusBadRequest)
+			s.error(w, fmt.Errorf("login: uncorrect request data: %v", err), "bad request", fields, http.StatusBadRequest)
 			return
 		}
+		l.Trace("successful read data and unmarshal")
 
 		user, err := s.store.User().GetByLogin(r.Context(), req.Login)
 		if err != nil {
-			s.error(w, fmt.Errorf("login: unauthorized: %v", err), store.ErrIncorrectLoginData.Error(), id, http.StatusUnauthorized)
+			s.error(w, fmt.Errorf("login: unauthorized: %v", err), "", fields, http.StatusUnauthorized)
 			return
 		}
+		l.Trace("got user by login")
 		if err := user.ComparePassword(req.Password); err != nil {
-			s.error(w, fmt.Errorf("login: compare pass: unauthorized: %v", err), store.ErrIncorrectLoginData.Error(), id, http.StatusUnauthorized)
+			s.error(w, fmt.Errorf("login: compare pass: unauthorized: %v", err), "", fields, http.StatusUnauthorized)
 			return
 		}
 
-		s.logger.WithFields(logrus.Fields{
-			UserIDLoggerField: user.ID,
-			"request_id":      id,
-		}).Trace("successful authenticated")
+		l.Trace("successful authenticated")
 
 		s.authenticate(w, user.ID)
 		w.WriteHeader(http.StatusOK)
@@ -108,58 +114,65 @@ func (s *server) handleAuthLogin() http.HandlerFunc {
 func (s *server) handleOrdersPost() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		reqID := middleware.GetReqID(r.Context())
+		fields := map[string]interface{}{
+			"request_id": reqID,
+		}
+		l := s.logger.WithFields(fields)
+		fields["handler"] = "order register"
 
 		defer func() {
 			if err := r.Body.Close(); err != nil {
-				s.logger.WithField("request_id", reqID).Warnf("handle orders post: close body: %v", err)
+				l.Warnf("handle orders post: close body: %v", err)
 			}
 		}()
 
 		data, err := io.ReadAll(r.Body)
 		if err != nil {
-			s.error(w, err, "", reqID, http.StatusBadRequest)
+			s.error(w, err, "", fields, http.StatusBadRequest)
 			return
 		}
-		fields := map[string]interface{}{
-			"request_id": reqID,
-		}
+
 		strNum := string(data)
 		if strNum == "" {
-			s.error(w, fmt.Errorf("bad request data"), "", reqID, http.StatusBadRequest)
+			s.error(w, fmt.Errorf("bad request data"), "", fields, http.StatusBadRequest)
 			return
 		}
-		s.logger.WithFields(fields).Trace("successful read data")
+
+		l.Trace("successful read data")
 
 		num, err := strconv.Atoi(strNum)
 		if err != nil {
-			s.error(w, err, "", reqID, http.StatusBadRequest)
+			s.error(w, err, "", fields, http.StatusBadRequest)
 			return
 		}
-		s.logger.WithFields(fields).Trace("successful get number")
+		l.Trace("successful get number")
 
 		if ok := luhn.Valid(num); !ok {
-			s.error(w, err, "", reqID, http.StatusUnprocessableEntity)
+			s.error(w, err, "", fields, http.StatusUnprocessableEntity)
 			return
 		}
-		s.logger.WithFields(fields).Trace("request is valid")
+		l.Trace("request is valid")
 
 		u, err := GetUserIDFromRequest(r)
-		s.logger.WithFields(fields).Tracef("get user id %d %v", u, err)
 		if err != nil {
-			s.error(w, err, "", reqID, http.StatusUnauthorized)
+			s.error(w, err, "", fields, http.StatusUnauthorized)
 			return
 		}
+		l.Trace("successful get user from request")
 
 		if err := s.poller.Register(r.Context(), u, num); err != nil {
-			s.logger.WithFields(fields).Tracef("poller register err", err)
+			l.Tracef("poller register err", err)
+			var status int
+
 			if errors.Is(err, store.ErrAlreadyRegisteredByUser) {
-				w.WriteHeader(http.StatusOK)
-				return
+				status = http.StatusOK
 			} else if errors.Is(err, store.ErrAlreadyRegisteredByAnotherUser) {
-				w.WriteHeader(http.StatusConflict)
-				return
+				status = http.StatusConflict
+			} else {
+				status = http.StatusInternalServerError
 			}
-			s.error(w, err, "", reqID, http.StatusInternalServerError)
+
+			s.error(w, err, "", fields, status)
 			return
 		}
 		w.WriteHeader(http.StatusAccepted)
@@ -170,31 +183,47 @@ func (s *server) handleOrdersPost() http.HandlerFunc {
 func (s *server) handleOrdersGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		reqID := middleware.GetReqID(r.Context())
+		fields := map[string]interface{}{
+			"request_id": reqID,
+		}
+		l := s.logger.WithFields(fields)
+		fields["handler"] = "get user orders"
 
 		u, err := GetUserIDFromRequest(r)
 		if err != nil {
-			s.error(w, err, "", reqID, http.StatusInternalServerError)
+			s.error(w, err, "", fields, http.StatusInternalServerError)
+			return
+		}
+		l.Trace("successful got user from request")
+
+		orders, err := s.store.Order().GetAllByUser(r.Context(), u)
+		if err != nil {
+			if errors.Is(err, store.ErrNoContent) {
+				s.error(w, err, "", fields, http.StatusNoContent)
+				return
+			}
+			s.error(w, err, "", fields, http.StatusInternalServerError)
+			return
+		}
+		l.Trace("successful get user orders")
+
+		if len(orders) == 0 {
+			s.error(w, err, "", fields, http.StatusNoContent)
 			return
 		}
 
-		ordrs, err := s.store.Order().GetAllByUser(r.Context(), u)
+		data, err := json.Marshal(&orders)
 		if err != nil {
-			s.error(w, err, "", reqID, http.StatusInternalServerError)
+			s.error(w, fmt.Errorf("json marshal: %v", err), "", fields, http.StatusInternalServerError)
 			return
 		}
-		if len(ordrs) == 0 {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-
-		data, err := json.Marshal(&ordrs)
-		if err != nil {
-			s.error(w, err, "", reqID, http.StatusInternalServerError)
-			return
-		}
+		l.Trace("successful marshaled orders to resp data")
 
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(data)
+		if _, err := w.Write(data); err != nil {
+			s.error(w, fmt.Errorf("write response: %v", err), "", fields, http.StatusInternalServerError)
+			return
+		}
 	}
 }
 
@@ -202,32 +231,36 @@ func (s *server) handleOrdersGet() http.HandlerFunc {
 func (s *server) handleBalanceGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		reqID := middleware.GetReqID(r.Context())
+		fields := map[string]interface{}{
+			"request_id": reqID,
+		}
+		l := s.logger.WithFields(fields)
+		fields["handler"] = "get user balance"
 
 		id, err := GetUserIDFromRequest(r)
 		if err != nil {
-			s.error(w, err, "", reqID, http.StatusInternalServerError)
+			s.error(w, err, "", fields, http.StatusInternalServerError)
 			return
 		}
 
 		b, err := s.store.User().GetBalance(r.Context(), id)
 		if err != nil {
-			s.error(w, err, "", reqID, http.StatusInternalServerError)
+			s.error(w, err, "", fields, http.StatusInternalServerError)
 			return
 		}
+		l.Trace("successful got user balance")
+
 		data, err := json.Marshal(b)
 		if err != nil {
-			s.error(w, err, "", reqID, http.StatusInternalServerError)
+			s.error(w, fmt.Errorf("json marshal: %v", err), "", fields, http.StatusInternalServerError)
 			return
 		}
+		l.Trace("successful marshaled")
 
 		w.Header().Set("Content-Type", "application/json")
 		if _, err := w.Write(data); err != nil {
-			s.error(w, err, "", reqID, http.StatusInternalServerError)
+			s.error(w, fmt.Errorf("rw write: %v", err), "", fields, http.StatusInternalServerError)
 		}
-		s.logger.WithFields(map[string]interface{}{
-			"request_id": reqID,
-			"user":       id,
-		})
 	}
 }
 
@@ -236,34 +269,51 @@ func (s *server) handleBalanceWithdrawPost() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		reqID := middleware.GetReqID(ctx)
+		fields := map[string]interface{}{
+			"request_id": reqID,
+		}
+		l := s.logger.WithFields(fields)
+		fields["handler"] = "handle balance withdraw post"
+
 		user, err := GetUserIDFromRequest(r)
 		if err != nil {
-			s.error(w, err, "", reqID, http.StatusUnauthorized)
+			s.error(w, fmt.Errorf("get user id from req: %v", err), "", fields, http.StatusUnauthorized)
 			return
 		}
-		var withdraw *model.Withdraw
+		l.Trace("successful get user from request")
+
 		defer func() {
 			if err := r.Body.Close(); err != nil {
-				s.error(w, err, "", reqID, http.StatusInternalServerError)
+				s.error(w, fmt.Errorf("resp body close: %v", err), "", fields, http.StatusInternalServerError)
 			}
 		}()
+
 		data, err := io.ReadAll(r.Body)
 		if err != nil {
-			s.error(w, err, "", reqID, http.StatusInternalServerError)
+			s.error(w, fmt.Errorf("read body data: %v", err), "", fields, http.StatusInternalServerError)
 			return
 		}
+		l.Trace("successful get body data")
+
+		var withdraw *model.Withdraw
 		if err := json.Unmarshal(data, &withdraw); err != nil {
-			s.error(w, err, "", reqID, http.StatusBadRequest)
+			s.error(w, fmt.Errorf("json unmarshal withdraw: %v", err), "", fields, http.StatusBadRequest)
 			return
 		}
+		l.Trace("successful json unmarshalled data")
+
 		if err := s.store.Withdraws().Withdraw(ctx, user, withdraw); err != nil {
+			err = fmt.Errorf("withdraw: %v", err)
+			var status int
 			if errors.Is(err, store.ErrPaymentRequired) {
-				s.error(w, err, "", reqID, http.StatusPaymentRequired)
-				return
+				status = http.StatusPaymentRequired
+			} else {
+				status = http.StatusInternalServerError
 			}
-			s.error(w, err, "", reqID, http.StatusInternalServerError)
+			s.error(w, err, "", fields, status)
 			return
 		}
+		l.Trace("successful withdraw")
 		w.WriteHeader(http.StatusOK)
 	}
 }
@@ -273,34 +323,41 @@ func (s *server) handleGetAllWithdraws() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		reqID := middleware.GetReqID(ctx)
+		fields := map[string]interface{}{
+			"request_id": reqID,
+		}
+		l := s.logger.WithFields(fields)
+		fields["handler"] = "get all withdraws"
 
 		id, err := GetUserIDFromRequest(r)
 		if err != nil {
-			s.error(w, err, "", reqID, http.StatusInternalServerError)
+			s.error(w, err, "", fields, http.StatusInternalServerError)
 			return
 		}
+		l.Trace("successful get user id from req")
 
 		withdrawals, err := s.store.Withdraws().GetAllByUser(ctx, id)
 		if err != nil {
+			err = fmt.Errorf("withdraws: get all by user: %v", err)
 			if errors.Is(err, store.ErrNoContent) {
-				s.error(w, err, "", reqID, http.StatusNoContent)
+				s.error(w, err, "", fields, http.StatusNoContent)
 				return
 			}
 
-			s.error(w, err, "", reqID, http.StatusInternalServerError)
+			s.error(w, err, "", fields, http.StatusInternalServerError)
 			return
 		}
 
 		data, err := json.Marshal(withdrawals)
 		if err != nil {
-			s.error(w, err, "", reqID, http.StatusInternalServerError)
+			s.error(w, err, "", fields, http.StatusInternalServerError)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write(data); err != nil {
-			s.error(w, err, "", reqID, http.StatusInternalServerError)
+			s.error(w, err, "", fields, http.StatusInternalServerError)
 		}
 	}
 }

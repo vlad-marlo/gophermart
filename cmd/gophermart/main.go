@@ -45,21 +45,22 @@ func main() {
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM, os.Kill, syscall.SIGINT)
 
 	// gracefully shut down
+	var stringSignal string
 	sig := <-interrupt
 	switch sig {
 	case os.Interrupt:
-		log.Info("got interrupt signal")
+		stringSignal = "interrupt"
 	case syscall.SIGTERM:
-		log.Info("got terminate signal")
+		stringSignal = "terminate"
 	case os.Kill:
-		log.Info("got kill signal")
+		stringSignal = "kill"
 	case syscall.SIGINT:
-		log.Infof("got int signal: %s", sig.String())
+		stringSignal = "int"
 	default:
-		log.Info("default")
+		stringSignal = "unknown"
 	}
 
 	p.Close()
 	storage.Close()
-	log.Info("server was closed successful")
+	log.WithField("signal", stringSignal).Info("graceful shut down")
 }

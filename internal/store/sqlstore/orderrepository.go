@@ -44,8 +44,8 @@ func (o *orderRepository) Migrate(ctx context.Context) error {
 			"sql":   debugQuery(q),
 			"query": i + 1,
 		})
-		if _, err := o.s.db.Exec(ctx, q); err != nil {
-			if pgErr, ok := err.(*pgconn.PgError); !(ok && pgErr.Code == "42710") {
+		if _, err := o.s.db.Exec(ctx, q); err != nil { // "42710"
+			if pgErr, ok := err.(*pgconn.PgError); !(ok && pgErr.Code == pgerrcode.DuplicateObject) {
 				return fmt.Errorf("exec query %d: %v", i+1, pgError(err))
 			}
 		}
@@ -64,10 +64,8 @@ func (o *orderRepository) Register(ctx context.Context, user, number int) error 
 	o.s.logger.WithField("request_id", middleware.GetReqID(ctx)).Trace(debugQuery(q))
 
 	if _, err := o.s.db.Exec(ctx, q, user, number); err != nil {
-		if pgErr, ok := err.(*pgconn.PgError); ok {
-			if pgErr.Code == pgerrcode.UniqueViolation {
-				return o.getErrByNum(ctx, user, number)
-			}
+		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == pgerrcode.UniqueViolation {
+			return o.getErrByNum(ctx, user, number)
 		}
 		return fmt.Errorf("exec: %v", pgError(err))
 	}
@@ -83,7 +81,7 @@ func (o *orderRepository) GetAllByUser(ctx context.Context, user int) (res []*mo
 		WHERE
 		    x.user_id = $1
 		ORDER BY
-		    x.created_at ASC;
+		    x.created_at;
 	`
 	o.s.logger.WithField("request_id", middleware.GetReqID(ctx)).Trace(debugQuery(q))
 

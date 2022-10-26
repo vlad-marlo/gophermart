@@ -28,16 +28,16 @@ func TestUserRepository_Create(t *testing.T) {
 		{
 			name:    "duplicate login #1",
 			login:   "login",
-			wantErr: sqlstore.ErrLoginAlreadyInUse,
+			wantErr: store.ErrLoginAlreadyInUse,
 		},
 	}
-	store, teardown := sqlstore.TestStore(t, conStr)
+	testStore, teardown := sqlstore.TestStore(t, conStr)
 	defer teardown("users")
 	defer logger.DeleteLogFolderAndFile(t)
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			u := model.TestUser(t, tc.login)
-			err := store.User().Create(context.TODO(), u)
+			err := testStore.User().Create(context.TODO(), u)
 
 			if tc.wantErr == nil {
 				require.NoError(t, err)
@@ -45,7 +45,7 @@ func TestUserRepository_Create(t *testing.T) {
 				require.ErrorIs(t, err, tc.wantErr)
 			}
 
-			u1, err := store.User().GetByLogin(context.TODO(), u.Login)
+			u1, err := testStore.User().GetByLogin(context.TODO(), u.Login)
 			if tc.wantErr == nil {
 				require.NoError(t, err)
 
@@ -53,9 +53,9 @@ func TestUserRepository_Create(t *testing.T) {
 					t.Fatalf("something went wrong")
 				}
 
-				require.True(t, store.User().ExistsWithID(context.TODO(), u.ID))
+				require.True(t, testStore.User().ExistsWithID(context.TODO(), u.ID))
 			} else {
-				require.False(t, store.User().ExistsWithID(context.TODO(), u.ID))
+				require.False(t, testStore.User().ExistsWithID(context.TODO(), u.ID))
 			}
 		})
 
