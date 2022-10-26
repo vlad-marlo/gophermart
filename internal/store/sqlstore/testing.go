@@ -34,7 +34,9 @@ func TestStore(t *testing.T, con string) (store.Storage, func(...string)) {
 		logger: l,
 	}
 	s.user = &userRepository{s}
-	s.user.Migrate(context.Background())
+	if err := s.user.Migrate(context.Background()); err != nil {
+		s.logger.Warnf("migrate: %v", err)
+	}
 
 	return s, func(tables ...string) {
 		if len(tables) > 0 {

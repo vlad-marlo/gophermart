@@ -10,8 +10,7 @@ import (
 )
 
 const (
-	UserIDCookieName     = "user"
-	RequestIDLoggerField = "request_id"
+	UserIDCookieName = "user"
 )
 
 // CheckAuthMiddleware ...

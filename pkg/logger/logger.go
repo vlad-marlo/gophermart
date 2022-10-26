@@ -170,7 +170,7 @@ func (l *logger) WithField(key string, value interface{}) Logger {
 	return &logger{e.WithField(key, value)}
 }
 
-// GetEntry
+// GetEntry ...
 func (l *logger) GetEntry() *logrus.Entry {
 	return l.Entry
 }

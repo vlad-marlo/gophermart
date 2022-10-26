@@ -40,7 +40,7 @@ func New(l logger.Logger, s store.Storage, limit int) *OrderPoller {
 	return o
 }
 
-// deque FanIn flushing buffer
+// Close ...
 func (s *OrderPoller) Close() {
 	close(s.queue)
 }
