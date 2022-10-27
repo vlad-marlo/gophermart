@@ -7,6 +7,11 @@ type (
 		Accrual    int    `json:"accrual,omitempty"`
 		UploadedAt string `json:"uploaded_at"`
 	}
+	OrderInPoll struct {
+		Number int
+		Status string
+		User   int
+	}
 	OrderInAccrual struct {
 		Number  int    `json:"order,string"`
 		Status  string `json:"status"`

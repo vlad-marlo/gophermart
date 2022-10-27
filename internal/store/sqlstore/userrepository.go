@@ -212,7 +212,7 @@ func (r *userRepository) IncrementBalance(ctx context.Context, id, add int) erro
 		UPDATE
 			users
 		SET
-			balance = balance + $1
+			balance = balance + $1::numeric::money
 		WHERE
 			id = $2;
 	`

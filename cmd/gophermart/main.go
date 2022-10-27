@@ -32,7 +32,7 @@ func main() {
 	if err != nil {
 		log.Panicf("new sql store: %v", err)
 	}
-	p := poller.New(log, storage, pollerQueueLimit)
+	p := poller.New(log, storage, cfg, pollerQueueLimit)
 	go func() {
 		log.Infof("starting server on %v", cfg.BindAddr)
 		if err := server.Start(log, storage, cfg, p); err != nil {
@@ -42,7 +42,7 @@ func main() {
 
 	// creating interrupt chan for accepting os signals
 	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM, os.Kill, syscall.SIGINT)
+	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM, os.Kill, syscall.SIGINT, syscall.SIGSEGV)
 
 	// gracefully shut down
 	var stringSignal string
@@ -56,6 +56,8 @@ func main() {
 		stringSignal = "kill"
 	case syscall.SIGINT:
 		stringSignal = "int"
+	case syscall.SIGSEGV:
+		stringSignal = "segmentation violation"
 	default:
 		stringSignal = "unknown"
 	}

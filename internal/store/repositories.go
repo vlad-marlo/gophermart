@@ -11,7 +11,6 @@ type (
 		User() UserRepository
 		Order() OrderRepository
 		Withdraws() WithdrawRepository
-
 		Close()
 	}
 	UserRepository interface {
@@ -27,6 +26,7 @@ type (
 		Register(ctx context.Context, user, number int) error
 		GetAllByUser(ctx context.Context, user int) (res []*model.Order, err error)
 		ChangeStatus(ctx context.Context, user int, m *model.OrderInAccrual) error
+		GetUnprocessedOrders(ctx context.Context) ([]*model.OrderInPoll, error)
 	}
 	WithdrawRepository interface {
 		Migrate(ctx context.Context) error

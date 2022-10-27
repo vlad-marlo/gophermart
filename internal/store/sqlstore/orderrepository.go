@@ -21,7 +21,7 @@ func (o *orderRepository) Migrate(ctx context.Context) error {
 	queries := []string{
 		`CREATE TABLE IF NOT EXISTS orders(
 			pk BIGSERIAL PRIMARY KEY,
-			id INT UNIQUE,
+			id BIGINT UNIQUE,
 			user_id BIGINT,
 			status VARCHAR(50) DEFAULT 'NEW',
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -63,7 +63,7 @@ func (o *orderRepository) Register(ctx context.Context, user, number int) error 
 	`
 	o.s.logger.WithField("request_id", middleware.GetReqID(ctx)).Trace(debugQuery(q))
 
-	if _, err := o.s.db.Exec(ctx, q, user, number); err != nil {
+	if _, err := o.s.db.Exec(ctx, q, number, user); err != nil {
 		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == pgerrcode.UniqueViolation {
 			return o.getErrByNum(ctx, user, number)
 		}
@@ -112,18 +112,28 @@ func (o *orderRepository) getErrByNum(ctx context.Context, user, number int) err
 			orders 
 		WHERE
 			id = $1 AND user_id = $2
+	), EXISTS(
+	    SELECT 
+	        *
+	    FROM
+	        orders
+	    WHERE
+	        id = $3
 	);
 	`
 	o.s.logger.WithField("request_id", middleware.GetReqID(ctx)).Trace(debugQuery(q))
 
-	var status bool
-	if err := o.s.db.QueryRow(ctx, q, number, user).Scan(&status); err != nil {
+	var statusByUser, statusByNum bool
+	if err := o.s.db.QueryRow(ctx, q, number, user, number).Scan(&statusByUser, &statusByNum); err != nil {
 		return pgError(err)
 	}
-	if status {
+	if statusByUser {
 		return store.ErrAlreadyRegisteredByUser
 	}
-	return store.ErrAlreadyRegisteredByAnotherUser
+	if statusByNum {
+		return store.ErrAlreadyRegisteredByAnotherUser
+	}
+	return nil
 }
 
 func (o *orderRepository) ChangeStatus(ctx context.Context, user int, m *model.OrderInAccrual) error {
@@ -136,10 +146,42 @@ func (o *orderRepository) ChangeStatus(ctx context.Context, user int, m *model.O
 		WHERE
 			id = $3 AND user_id = $4;
 	`
-	o.s.logger.Debug(debugQuery(q))
+	o.s.logger.Trace(debugQuery(q))
 
 	if _, err := o.s.db.Exec(ctx, q, m.Status, m.Accrual, m.Number, user); err != nil {
 		return fmt.Errorf("exec: %v", pgError(err))
 	}
 	return nil
+}
+
+func (o *orderRepository) GetUnprocessedOrders(ctx context.Context) (res []*model.OrderInPoll, err error) {
+	// hardcoded; IDK is it ok
+	q := `
+		SELECT
+		    x.id, x.status, x.user_id
+		FROM
+		    orders x
+		WHERE
+		    x.status != 'PROCESSED'
+			AND x.status != 'INVALID';
+	`
+	o.s.logger.Trace(debugQuery(q))
+	rows, err := o.s.db.Query(ctx, q)
+	if err != nil {
+		return nil, fmt.Errorf("db query: %v", err)
+	}
+
+	for rows.Next() {
+		o := new(model.OrderInPoll)
+		if err := rows.Scan(&o.Number, &o.Status, &o.User); err != nil {
+			return nil, fmt.Errorf("rows scan: %v", err)
+		}
+		res = append(res, o)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows err: %v", err)
+	}
+
+	return res, nil
 }

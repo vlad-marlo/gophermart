@@ -29,14 +29,34 @@ type (
 	}
 )
 
-func New(l logger.Logger, s store.Storage, limit int) *OrderPoller {
+func New(l logger.Logger, s store.Storage, cfg *config.Config, limit int) *OrderPoller {
 	o := &OrderPoller{
 		queue:  make(chan *task, 2*limit),
 		store:  s,
 		logger: l,
 		limit:  limit,
+		config: cfg,
 	}
 	o.startPolling()
+	go func() {
+		orders, err := o.store.Order().GetUnprocessedOrders(context.Background())
+		if err != nil {
+			l.Trace("get unprocessed orders: %v", err)
+			return
+		}
+		if len(orders) == 0 {
+			l.Trace("no unprocessed orders")
+		}
+		for _, ordr := range orders {
+			l.Trace("push order to queue: %v", ordr)
+			o.queue <- &task{
+				ID:     ordr.Number,
+				User:   ordr.User,
+				Status: ordr.Status,
+				ReqID:  "init poller",
+			}
+		}
+	}()
 	return o
 }
 
@@ -48,22 +68,23 @@ func (s *OrderPoller) Close() {
 // startPolling ...
 func (s *OrderPoller) startPolling() {
 	for i := 0; i < s.limit; i++ {
-		go func() {
+		go func(poll int) {
 			for t := range s.queue {
-				s.pollWork(t)
-				if rcvrd := recover(); rcvrd != nil {
-					s.logger.Errorf("recovered panic in poller: %v", rcvrd)
+				s.pollWork(poll, t)
+				if recovered := recover(); recovered != nil {
+					s.logger.WithField("poll", poll).Errorf("recovered panic in poller: %v", recovered)
 				}
 			}
-		}()
+		}(i)
 	}
 }
 
 // pollWork ...
-func (s *OrderPoller) pollWork(t *task) {
+func (s *OrderPoller) pollWork(poller int, t *task) {
 	ctx := context.Background()
 	l := s.logger.WithFields(map[string]interface{}{
 		"request_id": t.ReqID,
+		"poll":       poller,
 	})
 
 	l.Trace("get order from accrual")
@@ -122,8 +143,8 @@ func (s *OrderPoller) pollWork(t *task) {
 func (s *OrderPoller) GetOrderFromAccrual(reqID string, number int) (o *model.OrderInAccrual, err error) {
 	l := s.logger.WithField("request_id", reqID)
 	o = new(model.OrderInAccrual)
-	l.Trace("init order in accrual")
-	response, err := http.Get(fmt.Sprintf("%s/%d", s.config.AccuralSystemAddres, number))
+
+	response, err := http.Get(fmt.Sprintf("http://%s/api/orders/%d", s.config.AccuralSystemAddres, number))
 	if err != nil {
 		return nil, fmt.Errorf("http get: %v", err)
 	}
@@ -133,15 +154,21 @@ func (s *OrderPoller) GetOrderFromAccrual(reqID string, number int) (o *model.Or
 		return nil, ErrTooManyRequests
 	case http.StatusInternalServerError:
 		return nil, ErrInternal
+	case http.StatusNotFound:
+		return nil, ErrInternal
 	}
 
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			s.logger.Warnf("get order form accrual: response body close: %v", err)
+			l.Warnf("get order form accrual: response body close: %v", err)
 		}
 	}()
 
 	data, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read body: %v", err)
+	}
+	l.Trace(string(data), response.StatusCode)
 	if err := json.Unmarshal(data, &o); err != nil {
 		return nil, fmt.Errorf("json unmarshal: %v", err)
 	}
@@ -153,12 +180,13 @@ func (s *OrderPoller) GetOrderFromAccrual(reqID string, number int) (o *model.Or
 func (s *OrderPoller) Register(ctx context.Context, user, num int) error {
 	err := s.store.Order().Register(ctx, user, num)
 	if err != nil {
-		s.logger.WithField("request_id", middleware.GetReqID(ctx)).Tracef("err: %v", err)
 		return err
 	}
 
 	go func() {
-		s.queue <- &task{num, user, model.StatusNew, middleware.GetReqID(ctx)}
+		reqID := middleware.GetReqID(ctx)
+		s.logger.WithField("request_id", reqID).Trace("pushing task to queue")
+		s.queue <- &task{num, user, model.StatusNew, reqID}
 	}()
 	return nil
 }
