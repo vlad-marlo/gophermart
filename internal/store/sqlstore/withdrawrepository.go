@@ -19,7 +19,7 @@ func (r *withdrawRepository) Migrate(ctx context.Context) error {
 			processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			user_id BIGINT,
 			order_id BIGINT,
-			order_sum INT NOT NULL,
+			order_sum FLOAT4 NOT NULL,
 			FOREIGN KEY (order_id) REFERENCES orders(id),
 			FOREIGN KEY (user_id) REFERENCES users(id)
 		);`
@@ -31,10 +31,10 @@ func (r *withdrawRepository) Migrate(ctx context.Context) error {
 }
 
 func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Withdraw) error {
-	var bal int
+	var bal float32
 	qGetBal := `
 	SELECT
-		balance::numeric::int
+		balance::numeric::float4
 	FROM
 		users
 	WHERE

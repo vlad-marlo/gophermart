@@ -7,7 +7,6 @@ import (
 	"github.com/lib/pq"
 
 	"github.com/jackc/pgerrcode"
-
 	"github.com/vlad-marlo/gophermart/internal/model"
 	"github.com/vlad-marlo/gophermart/internal/store"
 )
@@ -24,7 +23,7 @@ func (o *orderRepository) Migrate(ctx context.Context) error {
 			user_id BIGINT,
 			status VARCHAR(50) DEFAULT 'NEW',
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			accrual bigint,
+			accrual float4,
 			FOREIGN KEY (user_id) REFERENCES users(id)
 		);
 		CREATE INDEX IF NOT EXISTS
@@ -60,13 +59,14 @@ func (o *orderRepository) Register(ctx context.Context, user, number int) error 
 }
 
 func (o *orderRepository) GetAllByUser(ctx context.Context, user int) (orders []*model.Order, err error) {
+	// TODO: FIX 500 ERR
 	q := `
 		SELECT 
-			x.id, x.status, x.accrual::numeric::int, x.created_at
+			x.id, x.status, x.accrual, x.created_at
 		FROM
 		    orders x
 		WHERE
-		    x.user_id = $1
+		    x.user_id = $1 AND x.accrual IS NOT NULL
 		ORDER BY
 		    x.created_at;
 	`
@@ -100,22 +100,22 @@ func (o *orderRepository) getErrByNum(ctx context.Context, user, number int) err
 	q := `
 	SELECT EXISTS(
 		SELECT
-			* 
-		FROM 
-			orders 
+			*
+		FROM
+			orders
 		WHERE
 			id = $1 AND user_id = $2
 	), EXISTS(
-	    SELECT 
+	    SELECT
 	        *
 	    FROM
 	        orders
 	    WHERE
-	        id = $3
+	        id = $1
 	);`
 
 	var statusByUser, statusByNum bool
-	if err := o.s.db.QueryRow(ctx, q, number, user, number).Scan(&statusByUser, &statusByNum); err != nil {
+	if err := o.s.db.QueryRow(ctx, q, number, user).Scan(&statusByUser, &statusByNum); err != nil {
 		return pgError("query row: %v", err)
 	}
 

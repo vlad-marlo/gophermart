@@ -42,8 +42,11 @@ func (s *OrderPoller) pollWork(poller int, t *task) {
 		s.queue <- t
 
 	case model.StatusInvalid:
+		if err := s.store.Order().ChangeStatus(ctx, t.User, o); err != nil {
+			l.Warnf("change status: %v", err)
+		}
 	case model.StatusProcessed:
-		if o.Accrual > 0 {
+		if o.Accrual > 0.0 {
 			if err := s.store.User().IncrementBalance(ctx, t.User, o.Accrual); err != nil {
 				l.Tracef("increment user balance: %v", err)
 			}
