@@ -35,14 +35,10 @@ func New(l logger.Logger, s store.Storage, cfg *config.Config, limit int) *Order
 	go func() {
 		orders, err := o.store.Order().GetUnprocessedOrders(context.Background())
 		if err != nil {
-			l.Trace("get unprocessed orders: %v", err)
+			l.Errorf("get unprocessed orders: %v", err)
 			return
 		}
-		if len(orders) == 0 {
-			l.Trace("no unprocessed orders")
-		}
 		for _, order := range orders {
-			l.Trace("push order to queue: %v", order)
 			o.queue <- &task{
 				ID:     order.Number,
 				User:   order.User,
@@ -66,7 +62,7 @@ func (s *OrderPoller) startPolling() {
 			for t := range s.queue {
 				s.pollWork(poll, t)
 				if recovered := recover(); recovered != nil {
-					s.logger.WithField("poll", poll).Errorf("recovered panic in poller: %v", recovered)
+					s.logger.WithField("poll", poll).Fatalf("recovered panic in poller: %v", recovered)
 				}
 			}
 		}(i)
@@ -82,7 +78,6 @@ func (s *OrderPoller) Register(ctx context.Context, user, num int) error {
 
 	go func() {
 		reqID := middleware.GetReqID(ctx)
-		s.logger.WithField("request_id", reqID).Trace("pushing task to queue")
 		s.queue <- &task{num, user, model.StatusNew, reqID}
 	}()
 	return nil

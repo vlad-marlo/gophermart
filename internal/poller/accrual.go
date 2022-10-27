@@ -13,7 +13,10 @@ func (s *OrderPoller) GetOrderFromAccrual(reqID string, number int) (o *model.Or
 	l := s.logger.WithField("request_id", reqID)
 	o = new(model.OrderInAccrual)
 
-	response, err := http.Get(fmt.Sprintf("http://%s/api/orders/%d", s.config.AccuralSystemAddress, number))
+	endpoint := fmt.Sprintf("http://%s/api/orders/%d", s.config.AccuralSystemAddress, number)
+	l.Tracef("request to %s", endpoint)
+
+	response, err := http.Get(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("http get: %v", err)
 	}
