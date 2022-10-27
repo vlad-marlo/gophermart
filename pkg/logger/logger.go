@@ -83,8 +83,7 @@ func init() {
 		FullTimestamp: true,
 		ForceColors:   true,
 		CallerPrettyfier: func(f *runtime.Frame) (fun string, file string) {
-			filename := path.Base(f.File)
-			return f.Function, fmt.Sprintf("%s:%d", filename, f.Line)
+			return f.Function, fmt.Sprintf("%s:%d", f.Func.Name(), f.Line)
 		},
 		TimestampFormat: time.RFC3339,
 	}
