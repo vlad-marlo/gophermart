@@ -189,6 +189,8 @@ func (s *server) handleOrdersGet() http.HandlerFunc {
 		l := s.logger.WithFields(fields)
 		fields["handler"] = "get user orders"
 
+		w.Header().Set("Content-Type", "application/json")
+
 		u, err := GetUserIDFromRequest(r)
 		if err != nil {
 			s.error(w, err, "", fields, http.StatusInternalServerError)
@@ -219,7 +221,6 @@ func (s *server) handleOrdersGet() http.HandlerFunc {
 		}
 		l.Trace("successful marshaled orders to resp data")
 
-		w.Header().Set("Content-Type", "application/json")
 		if _, err := w.Write(data); err != nil {
 			s.error(w, fmt.Errorf("write response: %v", err), "", fields, http.StatusInternalServerError)
 			return
@@ -230,6 +231,8 @@ func (s *server) handleOrdersGet() http.HandlerFunc {
 // handleBalanceGet ...
 func (s *server) handleBalanceGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
 		reqID := middleware.GetReqID(r.Context())
 		fields := map[string]interface{}{
 			"request_id": reqID,
@@ -256,7 +259,6 @@ func (s *server) handleBalanceGet() http.HandlerFunc {
 		}
 		l.Trace("successful marshaled")
 
-		w.Header().Set("Content-Type", "application/json")
 		if _, err := w.Write(data); err != nil {
 			s.error(w, fmt.Errorf("rw write: %v", err), "", fields, http.StatusInternalServerError)
 		}
@@ -332,6 +334,8 @@ func (s *server) handleGetAllWithdraws() http.HandlerFunc {
 		l := s.logger.WithFields(fields)
 		fields["handler"] = "get all withdraws"
 
+		w.Header().Set("Content-Type", "application/json")
+
 		id, err := GetUserIDFromRequest(r)
 		if err != nil {
 			s.error(w, err, "", fields, http.StatusInternalServerError)
@@ -357,7 +361,6 @@ func (s *server) handleGetAllWithdraws() http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write(data); err != nil {
 			s.error(w, err, "", fields, http.StatusInternalServerError)

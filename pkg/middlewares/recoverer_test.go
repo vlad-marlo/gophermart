@@ -20,8 +20,9 @@ func TestRecoverer(t *testing.T) {
 	require.NoErrorf(t, err, "new request: %v", err)
 
 	resp, err := http.DefaultClient.Do(req)
+	defer require.NoError(t, resp.Body.Close())
 	require.NoErrorf(t, err, "do request: %v", err)
 
 	require.Equal(t, 500, resp.StatusCode)
-	require.Nil(t, recover(), "recoverer is not nil!?!?!?!?")
+	require.Nil(t, recover(), "recoverer is not nil")
 }
