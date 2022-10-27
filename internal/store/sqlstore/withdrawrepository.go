@@ -56,7 +56,7 @@ func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Wi
 	var bal int
 	qGetBal := `
 	SELECT
-		balance
+		balance::numeric::int
 	FROM
 		users
 	WHERE
@@ -66,7 +66,7 @@ func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Wi
 	UPDATE
 		users
 	SET
-		balance = balance - $1
+		balance = balance - $1::numeric::money
 	WHERE
 		id = $2;
 	`
@@ -93,6 +93,7 @@ func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Wi
 	defer func() {
 		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			l.Fatalf("unable to update drivers: %v", err)
+			return
 		}
 		l.Trace("tx rollbacked")
 	}()
@@ -110,12 +111,13 @@ func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Wi
 	if _, err := tx.Exec(ctx, qWithdraw, w.Sum, user); err != nil {
 		return fmt.Errorf("withdraw balance: %v", pgError(err))
 	}
-	l.Trace("balance withdrawed")
+	l.Trace("balance withdrawn successful")
 
 	if _, err := tx.Exec(ctx, qUpdateWithdraw, w.Order); err != nil {
 		l.WithField("sql", debugQuery(qUpdateWithdraw)).Tracef("%v", pgError(err))
 		return fmt.Errorf("update withdraw: %v", pgError(err))
 	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("update drivers: %v", pgError(err))
 	}
@@ -142,11 +144,8 @@ func (r *withdrawRepository) GetAllByUser(ctx context.Context, user int) (w []*m
 		}
 		return nil, fmt.Errorf("query: %v", pgError(err))
 	}
-	defer rows.Close()
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows err: %v", pgError(err))
-	}
+	defer rows.Close()
 
 	for rows.Next() {
 		var o *model.Withdraw
@@ -157,6 +156,10 @@ func (r *withdrawRepository) GetAllByUser(ctx context.Context, user int) (w []*m
 
 		o.ToRepresentation()
 		w = append(w, o)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows err: %v", pgError(err))
 	}
 
 	if len(w) == 0 {

@@ -17,7 +17,7 @@ func (s *server) error(w http.ResponseWriter, err error, msg string, fields map[
 	case status > 500:
 		lvl = logrus.ErrorLevel
 	case status > 400:
-		lvl = logrus.WarnLevel
+		lvl = logrus.DebugLevel
 	}
 	s.logger.WithFields(fields).Log(lvl, err)
 }

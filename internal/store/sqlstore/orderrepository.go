@@ -18,39 +18,34 @@ type orderRepository struct {
 }
 
 func (o *orderRepository) Migrate(ctx context.Context) error {
-	queries := []string{
-		`CREATE TABLE IF NOT EXISTS orders(
+	q := `
+		CREATE TABLE IF NOT EXISTS orders(
 			pk BIGSERIAL PRIMARY KEY,
 			id BIGINT UNIQUE,
 			user_id BIGINT,
 			status VARCHAR(50) DEFAULT 'NEW',
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			accrual bigint
-		);`,
-
-		`ALTER TABLE IF EXISTS
+		);
+		ALTER TABLE IF EXISTS
 			orders
 		ADD CONSTRAINT
 			fk_user_order
-		FOREIGN KEY (user_id) REFERENCES users(id);`,
-
-		`CREATE INDEX IF NOT EXISTS
+		FOREIGN KEY (user_id) REFERENCES users(id);
+		CREATE INDEX IF NOT EXISTS
 			index_user_id_orders
-		ON orders(user_id);`,
-		`CREATE INDEX IF NOT EXISTS
+		ON orders(user_id);
+		CREATE INDEX IF NOT EXISTS
 			index_orders_number
-		ON orders(id);`,
-	}
+		ON orders(id);
+	`
 
-	for i, q := range queries {
-		o.s.logger.WithFields(logrus.Fields{
-			"sql":   debugQuery(q),
-			"query": i + 1,
-		})
-		if _, err := o.s.db.Exec(ctx, q); err != nil { // "42710"
-			if pgErr, ok := err.(*pgconn.PgError); !(ok && pgErr.Code == pgerrcode.DuplicateObject) {
-				return fmt.Errorf("exec query %d: %v", i+1, pgError(err))
-			}
+	o.s.logger.WithFields(logrus.Fields{
+		"sql": debugQuery(q),
+	})
+	if _, err := o.s.db.Exec(ctx, q); err != nil {
+		if pgErr, ok := err.(*pgconn.PgError); !(ok && pgErr.Code == pgerrcode.DuplicateObject) {
+			return fmt.Errorf("exec query %v", pgError(err))
 		}
 	}
 
@@ -92,10 +87,11 @@ func (o *orderRepository) GetAllByUser(ctx context.Context, user int) (res []*mo
 	if err != nil {
 		return nil, fmt.Errorf("query: %v", pgError(err))
 	}
+
+	defer rows.Close()
+
 	for rows.Next() {
-		var (
-			t time.Time
-		)
+		var t time.Time
 		o := new(model.Order)
 		if err := pgError(rows.Scan(&o.Number, &o.Status, &o.Accrual, &t)); err != nil {
 			return nil, fmt.Errorf("scan rows: %v", err)
@@ -103,9 +99,11 @@ func (o *orderRepository) GetAllByUser(ctx context.Context, user int) (res []*mo
 		o.UploadedAt = t.Format(time.RFC3339)
 		res = append(res, o)
 	}
+
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("rows err: %v", err)
 	}
+
 	return res, nil
 }
 
@@ -136,9 +134,11 @@ func (o *orderRepository) getErrByNum(ctx context.Context, user, number int) err
 	if err := o.s.db.QueryRow(ctx, q, number, user, number).Scan(&statusByUser, &statusByNum); err != nil {
 		return pgError(err)
 	}
+
 	if statusByUser {
 		return store.ErrAlreadyRegisteredByUser
 	}
+
 	if statusByNum {
 		return store.ErrAlreadyRegisteredByAnotherUser
 	}
@@ -175,10 +175,13 @@ func (o *orderRepository) GetUnprocessedOrders(ctx context.Context) (res []*mode
 			AND x.status != 'INVALID';
 	`
 	o.s.logger.Trace(debugQuery(q))
+
 	rows, err := o.s.db.Query(ctx, q)
 	if err != nil {
 		return nil, fmt.Errorf("db query: %v", err)
 	}
+
+	defer rows.Close()
 
 	for rows.Next() {
 		o := new(model.OrderInPoll)

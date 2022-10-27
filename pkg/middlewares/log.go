@@ -48,7 +48,7 @@ func LogRequest(logger logger.Logger) func(next http.Handler) http.Handler {
 				"duration":   fmt.Sprint(dur),
 				"code":       lrw.statusCode,
 				"request_id": id,
-			}).Trace(http.StatusText(lrw.statusCode))
+			}).Debug(http.StatusText(lrw.statusCode))
 		})
 	}
 }

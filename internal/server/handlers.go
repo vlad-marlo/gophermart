@@ -248,8 +248,7 @@ func (s *server) handleBalanceGet() http.HandlerFunc {
 			s.error(w, err, "", fields, http.StatusInternalServerError)
 			return
 		}
-		l.Trace("successful got user balance")
-
+		l.Trace("successful got user balance", b.Current)
 		data, err := json.Marshal(b)
 		if err != nil {
 			s.error(w, fmt.Errorf("json marshal: %v", err), "", fields, http.StatusInternalServerError)

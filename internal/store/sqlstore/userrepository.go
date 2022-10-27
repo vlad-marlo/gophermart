@@ -26,6 +26,7 @@ func debugQuery(q string) string {
 	q = strings.ReplaceAll(q, "\n", " ")
 	// this need if anywhere in query used spaces instead of \t
 	q = strings.ReplaceAll(q, "    ", "")
+	q = strings.ReplaceAll(q, "; ", ";")
 	return q
 }
 
@@ -51,6 +52,7 @@ func (r *userRepository) Migrate(ctx context.Context) error {
 		spent INT DEFAULT 0
 	);
 	`
+	r.s.logger.Debug(debugQuery(q))
 	if _, err := r.s.db.Exec(ctx, q); err != nil {
 		return pgError(err)
 	}
@@ -67,7 +69,7 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 		RETURNING id;
 	`
 
-	r.s.logger.WithField("request_id", middleware.GetReqID(ctx)).Trace(debugQuery(q))
+	r.s.logger.WithField("request_id", middleware.GetReqID(ctx)).Debug(debugQuery(q))
 
 	if err := u.BeforeCreate(); err != nil {
 		return fmt.Errorf("before create: %v", err)
@@ -102,7 +104,7 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 	// trace request
 	r.s.logger.WithFields(logrus.Fields{
 		"request_id": id,
-	}).Trace(debugQuery(q))
+	}).Debug(debugQuery(q))
 
 	// we don't need url model, just id
 	rows, err := r.s.db.Query(
@@ -131,6 +133,9 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 		}
 		return u, nil
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows err: %v", err)
+	}
 	return nil, store.ErrIncorrectLoginData
 }
 
@@ -149,7 +154,7 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 	`
 	r.s.logger.WithFields(logrus.Fields{
 		"request_id": middleware.GetReqID(ctx),
-	}).Trace(debugQuery(q))
+	}).Debug(debugQuery(q))
 
 	if err := r.s.db.QueryRow(
 		ctx,
@@ -171,7 +176,7 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model
 	balance = new(model.UserBalance)
 	q := `
 		SELECT 
-			balance::numeric::float8, spent
+			balance::numeric::float4, spent
 		FROM 
 			users 
 		WHERE 
@@ -181,19 +186,13 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model
 		"request_id": middleware.GetReqID(ctx),
 	})
 
-	l.Trace(debugQuery(q))
+	l.Debug(debugQuery(q))
 	rows, err := r.s.db.Query(ctx, q, id)
 	if err != nil {
 		return nil, pgError(err)
 	}
-	l.Trace("successful get balance")
 
 	defer rows.Close()
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows err: %v", err)
-	}
-	l.Trace("rows err is nil")
 
 	for rows.Next() {
 		if err := rows.Scan(&balance.Current, &balance.Withdrawn); err != nil {
@@ -201,6 +200,10 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model
 		}
 		l.Trace("return balance")
 		return balance, nil
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows err: %v", err)
 	}
 
 	return nil, store.ErrNoContent
@@ -219,6 +222,7 @@ func (r *userRepository) IncrementBalance(ctx context.Context, id, add int) erro
 	if add <= 0 {
 		return fmt.Errorf("check args: %v", store.ErrIncorrectData)
 	}
+	r.s.logger.Debug(debugQuery(q))
 	if _, err := r.s.db.Exec(ctx, q, add, id); err != nil {
 		return fmt.Errorf("db exec: %v", pgError(err))
 	}
