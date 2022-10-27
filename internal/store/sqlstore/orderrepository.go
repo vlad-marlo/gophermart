@@ -3,11 +3,12 @@ package sqlstore
 import (
 	"context"
 	"fmt"
+	"github.com/lib/pq"
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgerrcode"
-	"github.com/jackc/pgx/v5/pgconn"
+
 	"github.com/vlad-marlo/gophermart/internal/model"
 	"github.com/vlad-marlo/gophermart/internal/store"
 )
@@ -51,7 +52,7 @@ func (o *orderRepository) Register(ctx context.Context, user, number int) error 
 	o.s.logger.WithField("request_id", middleware.GetReqID(ctx)).Trace(debugQuery(q))
 
 	if _, err := o.s.db.Exec(ctx, q, number, user); err != nil {
-		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == pgerrcode.UniqueViolation {
+		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == pgerrcode.UniqueViolation {
 			return o.getErrByNum(ctx, user, number)
 		}
 		return fmt.Errorf("exec: %v", pgError(err))

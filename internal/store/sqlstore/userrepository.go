@@ -5,9 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/lib/pq"
 	"strings"
-
-	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgerrcode"
@@ -28,17 +27,6 @@ func debugQuery(q string) string {
 	q = strings.ReplaceAll(q, "    ", "")
 	q = strings.ReplaceAll(q, "; ", ";")
 	return q
-}
-
-// pgError checks err implements postgres error or not. If implements then returns error with postgres format or returns error
-func pgError(err error) error {
-	if pgErr, ok := err.(*pgconn.PgError); ok {
-		return fmt.Errorf(
-			"SQL error: %s, Detail: %s, Where: %s, Code: %s, State: %s",
-			pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState(),
-		)
-	}
-	return err
 }
 
 // Migrate ...
@@ -80,7 +68,7 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 		u.Login,
 		u.EncryptedPassword,
 	).Scan(&u.ID); err != nil {
-		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == pgerrcode.UniqueViolation {
+		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == pgerrcode.UniqueViolation {
 			return store.ErrLoginAlreadyInUse
 		}
 		return pgError(err)
@@ -160,11 +148,9 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 		q,
 		id,
 	).Scan(&res); err != nil {
-		if pgErr, ok := err.(*pgconn.PgError); ok {
-			r.s.logger.WithFields(logrus.Fields{
-				"request_id": middleware.GetReqID(ctx),
-			}).Errorf("Exists with id: scan: %v", pgError(pgErr))
-		}
+		r.s.logger.WithFields(logrus.Fields{
+			"request_id": middleware.GetReqID(ctx),
+		}).Errorf("Exists with id: scan: %v", pgError(err))
 		return false
 	}
 	return res

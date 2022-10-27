@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v4/pgxpool"
 
 	"github.com/vlad-marlo/gophermart/pkg/logger"
 
@@ -20,7 +20,7 @@ func TestStore(t *testing.T, con string) (store.Storage, func(...string)) {
 	l := logger.GetLogger()
 	logger.DeleteLogFolderAndFile(t)
 
-	db, err := pgxpool.New(context.Background(), con)
+	db, err := pgxpool.Connect(context.Background(), con)
 	if err != nil {
 		t.Fatalf("test store: sql open: %v", err)
 	}
