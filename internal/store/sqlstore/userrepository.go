@@ -5,39 +5,33 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
+	"github.com/lib/pq"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgerrcode"
-	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 	"github.com/vlad-marlo/gophermart/internal/model"
-	"github.com/vlad-marlo/gophermart/internal/pkg/logger"
+	"github.com/vlad-marlo/gophermart/internal/store"
 )
 
 type userRepository struct {
-	db *sql.DB
-	l  logger.Logger
+	s *storage
 }
 
-// debugQuery ...
-func debugQuery(q string) string {
-	q = strings.ReplaceAll(q, "\t", "")
-	q = strings.ReplaceAll(q, "\n", " ")
-	// this need if anywhere in query used spaces instead of \t
-	q = strings.ReplaceAll(q, "    ", " ")
-	return q
-}
-
-// pgError checks err implements pq error or not. If implements then returns error with postgres format or returns error
-func pgError(err error) error {
-	if pgErr, ok := err.(*pq.Error); ok {
-		return fmt.Errorf(
-			"SQL error: %s, Detail: %s, Where: %s, Code: %s, State: %s",
-			pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState(),
-		)
+// Migrate ...
+func (r *userRepository) Migrate(ctx context.Context) error {
+	q := `
+	CREATE TABLE IF NOT EXISTS users(
+		id BIGSERIAL UNIQUE PRIMARY KEY NOT NULL,
+		login VARCHAR UNIQUE NOT NULL,
+		password VARCHAR NOT NULL,
+		balance money DEFAULT 0
+	);
+	`
+	if _, err := r.s.db.Exec(ctx, q); err != nil {
+		return pgError("exec: %v", err)
 	}
-	return err
+	return nil
 }
 
 // Create ...
@@ -50,27 +44,20 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 		RETURNING id;
 	`
 
-	r.l.WithFields(logrus.Fields{
-		"request_id": middleware.GetReqID(ctx),
-	}).Trace(debugQuery(q))
-
 	if err := u.BeforeCreate(); err != nil {
 		return fmt.Errorf("before create: %v", err)
 	}
 
-	if err := r.db.QueryRowContext(
+	if err := r.s.db.QueryRow(
 		ctx,
 		q,
 		u.Login,
 		u.EncryptedPassword,
 	).Scan(&u.ID); err != nil {
-		if pgErr, ok := err.(*pq.Error); ok {
-			if pgErr.Code == pgerrcode.UniqueViolation {
-				return ErrLoginAlreadyInUse
-			}
-			return pgError(pgErr)
+		if pgErr, ok := err.(*pq.Error); ok && string(pgErr.Code) == pgerrcode.UniqueViolation {
+			return store.ErrLoginAlreadyInUse
 		}
-		return err
+		return pgError("scan: %v", err)
 	}
 
 	return nil
@@ -85,47 +72,34 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 		WHERE x.login=$1;
 	`
 	u := &model.User{Login: login}
-	id := middleware.GetReqID(ctx)
 
-	// trace request
-	r.l.WithFields(logrus.Fields{
-		"request_id": id,
-	}).Trace(debugQuery(q))
-
-	// we don't need url model, just id
-	rows, err := r.db.QueryContext(
+	rows, err := r.s.db.Query(
 		ctx,
 		q,
 		login,
 	)
-
-	// closing rows
-	defer func() {
-		if err := rows.Close(); err != nil {
-			r.l.WithFields(logrus.Fields{
-				"request_id": id,
-			}).Errorf("user repo: get by login: rows close: %v", pgError(err))
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, store.ErrIncorrectLoginData
 		}
-	}()
+		return nil, pgError("query context: %v", err)
+	}
 
 	// check error from query context
-	if err != nil {
-		r.l.WithField("request_id", id).Tracef("err=%s get id by login=%s", err, login)
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrUncorrectLoginData
-		}
-		return nil, fmt.Errorf("query context: %v", pgError(err))
-	}
-	r.l.WithField("request_id", id).Tracef("get id by login=%s", login)
+	// closing rows
+	defer rows.Close()
 
 	// getting data
 	if rows.Next() {
 		if err := rows.Scan(&u.ID, &u.EncryptedPassword); err != nil {
-			return nil, fmt.Errorf("scan: %v", pgError(err))
+			return nil, pgError("rows scan: %v", err)
 		}
 		return u, nil
 	}
-	return nil, ErrUncorrectLoginData
+	if err := rows.Err(); err != nil {
+		return nil, pgError("rows err: %v", err)
+	}
+	return nil, store.ErrIncorrectLoginData
 }
 
 // ExistsWithID ...
@@ -134,28 +108,83 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 	q := `
 		SELECT EXISTS(
 			SELECT
-				x.*
+				*
 			FROM
-				users AS x
+				users
 			WHERE
-				x.id=$1
+				id=$1
 		);
 	`
-	r.l.WithFields(logrus.Fields{
-		"request_id": middleware.GetReqID(ctx),
-	}).Trace(debugQuery(q))
 
-	if err := r.db.QueryRowContext(
+	if err := r.s.db.QueryRow(
 		ctx,
 		q,
 		id,
 	).Scan(&res); err != nil {
-		if pgErr, ok := err.(*pq.Error); ok {
-			r.l.WithFields(logrus.Fields{
-				"request_id": middleware.GetReqID(ctx),
-			}).Errorf("Exists with id: scan: %v", pgError(pgErr))
-		}
+		r.s.logger.WithFields(logrus.Fields{
+			"request_id": middleware.GetReqID(ctx),
+			"sql":        debugQuery(q),
+		}).Error(pgError("exists with id: scan: %v", err))
 		return false
 	}
 	return res
+}
+
+// GetBalance ...
+func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model.UserBalance, err error) {
+	q := `
+		SELECT
+			balance::numeric::float4, (
+				SELECT
+				    SUM(order_sum)
+				FROM
+				    withdrawals
+				WHERE
+				    user_id = $1
+			)
+		FROM
+			users
+		WHERE
+			id = $1;
+	`
+	balance = new(model.UserBalance)
+
+	rows, err := r.s.db.Query(ctx, q, id)
+	if err != nil {
+		return nil, pgError("exec query: %v", err)
+	}
+
+	defer rows.Close()
+
+	if rows.Next() {
+		if err := rows.Scan(&balance.Current, &balance.Withdrawn); err != nil {
+			return nil, pgError("rows scan: %v", err)
+		}
+		return balance, nil
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, pgError("rows err: %v", err)
+	}
+
+	return nil, store.ErrNoContent
+}
+
+// IncrementBalance ...
+func (r *userRepository) IncrementBalance(ctx context.Context, id, add int) error {
+	q := `
+		UPDATE
+			users
+		SET
+			balance = balance + $1::numeric::money
+		WHERE
+			id = $2;
+	`
+	if add <= 0 {
+		return fmt.Errorf("check args: %v", store.ErrIncorrectData)
+	}
+	if _, err := r.s.db.Exec(ctx, q, add, id); err != nil {
+		return pgError("db exec: %v", err)
+	}
+	return nil
 }

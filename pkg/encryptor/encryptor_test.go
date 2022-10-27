@@ -1,17 +1,18 @@
-package server
+package encryptor_test
 
 import (
 	"github.com/google/uuid"
+	"github.com/vlad-marlo/gophermart/pkg/encryptor"
+	"github.com/vlad-marlo/gophermart/pkg/logger"
 	"testing"
 )
 
 func TestEncryptor_DecodeEncode(t *testing.T) {
 	var data []string
+	defer logger.DeleteLogFolderAndFile(t)
+
 	for i := 0; i < 100; i++ {
 		data = append(data, uuid.New().String())
-	}
-	if encryptor == nil {
-		t.Fatal("encryptor must be not nil obj")
 	}
 	for _, v := range data {
 		var decodeTo string

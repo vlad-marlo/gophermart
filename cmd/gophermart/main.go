@@ -1,59 +1,66 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/vlad-marlo/gophermart/internal/pkg/logger"
+	"github.com/vlad-marlo/gophermart/pkg/logger"
 
 	"github.com/vlad-marlo/gophermart/internal/config"
+	"github.com/vlad-marlo/gophermart/internal/poller"
 	"github.com/vlad-marlo/gophermart/internal/server"
 	"github.com/vlad-marlo/gophermart/internal/store/sqlstore"
 )
 
+const pollerQueueLimit = 20
+
 func main() {
 	// init logger
-	l := logger.GetLogger()
+	log := logger.GetLogger()
 
 	// init cfg
 	cfg, err := config.New()
 	if err != nil {
-		l.Panicf("new config: %v", err)
+		log.Panicf("new config: %v", err)
 	}
 
-	// init store
-	store, err := sqlstore.New(l, cfg)
+	ctx := context.Background()
+	// init storage
+	storage, err := sqlstore.New(ctx, log, cfg)
 	if err != nil {
-		l.Panicf("new sql store: %v", err)
+		log.Panicf("new sql store: %v", err)
 	}
-
+	p := poller.New(log, storage, cfg, pollerQueueLimit)
 	go func() {
-		l.Infof("starting server on %v", cfg.BindAddr)
-		if err := server.Start(l, store, cfg); err != nil {
-			l.Panicf("start server: %v", err)
+		log.Infof("starting server on %v", cfg.BindAddr)
+		if err := server.Start(log, storage, cfg, p); err != nil {
+			log.Panicf("start server: %v", err)
 		}
 	}()
 
 	// creating interrupt chan for accepting os signals
 	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM, os.Kill, syscall.SIGSTOP)
+	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGSEGV)
 
 	// gracefully shut down
+	var stringSignal string
 	sig := <-interrupt
 	switch sig {
 	case os.Interrupt:
-		l.Info("got interrupt signal")
+		stringSignal = "interrupt"
 	case syscall.SIGTERM:
-		l.Info("got terminate signal")
-	case os.Kill:
-		l.Info("got kill signal")
+		stringSignal = "terminate"
+	case syscall.SIGINT:
+		stringSignal = "int"
+	case syscall.SIGSEGV:
+		stringSignal = "segmentation violation"
 	default:
-		l.Info("default")
+		stringSignal = "unknown"
 	}
 
-	if err := store.Close(); err != nil {
-		l.Panicf("store: close: %v", err)
-	}
-	l.Info("server was closed successful")
+	p.Close()
+	storage.Close()
+	log.WithField("signal", stringSignal).Info("graceful shut down")
 }

@@ -1,43 +1,49 @@
 package sqlstore
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/sirupsen/logrus"
-	"github.com/vlad-marlo/gophermart/internal/pkg/logger"
+	"github.com/jackc/pgx/v4/pgxpool"
+
+	"github.com/vlad-marlo/gophermart/pkg/logger"
+
 	"github.com/vlad-marlo/gophermart/internal/store"
 )
 
+// TestStore ...
 func TestStore(t *testing.T, con string) (store.Storage, func(...string)) {
 	t.Helper()
 
-	l := logger.Logger{Entry: logrus.NewEntry(logrus.New())}
+	l := logger.GetLogger()
+	logger.DeleteLogFolderAndFile(t)
 
-	db, err := sql.Open("postgres", con)
+	db, err := pgxpool.Connect(context.Background(), con)
 	if err != nil {
 		t.Fatalf("test store: sql open: %v", err)
 	}
 
-	if err := db.Ping(); err != nil {
+	if err := db.Ping(context.Background()); err != nil {
 		t.Fatalf("test store: db ping: %v", err)
 	}
 
 	s := &storage{
-		db:   db,
-		user: &userRepository{db, l},
-		l:    l,
+		db:     db,
+		logger: l,
 	}
-	source := "file://../../../migrations"
-	if err := s.migrate(source); err != nil {
-		t.Fatalf("test store: sql migrate: %v", err)
+	s.user = &userRepository{s}
+	if err := s.user.Migrate(context.Background()); err != nil {
+		s.logger.Warnf("migrate: %v", err)
 	}
+
 	return s, func(tables ...string) {
 		if len(tables) > 0 {
-			_, _ = db.Exec(fmt.Sprintf("TRUNCATE %s CASCADE", strings.Join(tables, ", ")))
+			if _, err = db.Exec(context.TODO(), fmt.Sprintf("TRUNCATE %s CASCADE", strings.Join(tables, ", "))); err != nil {
+				s.logger.Warn(pgError("defer func: truncate test db: %v", err))
+			}
 		}
-		_ = db.Close()
+		db.Close()
 	}
 }

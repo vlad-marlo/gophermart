@@ -9,10 +9,11 @@ var (
 	conStr string
 )
 
+// TestMain ...
 func TestMain(m *testing.M) {
 	conStr = os.Getenv("TEST_DB_URI")
 	if conStr == "" {
-		conStr = "host=localhost dbname=gophermart_test password=819819"
+		conStr = "postgres://postgres:postgres@localhost:5432/gophermart_test?sslmode=disable"
 	}
 	os.Exit(m.Run())
 }

@@ -1,47 +1,59 @@
 package sqlstore
 
 import (
-	"database/sql"
-	"fmt"
-
-	"github.com/vlad-marlo/gophermart/internal/pkg/logger"
-
-	_ "github.com/lib/pq"
+	"context"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/vlad-marlo/gophermart/internal/config"
 	"github.com/vlad-marlo/gophermart/internal/store"
+	"github.com/vlad-marlo/gophermart/pkg/logger"
 )
 
 type storage struct {
-	db *sql.DB
-	l  logger.Logger
+	db     *pgxpool.Pool
+	logger logger.Logger
+	cfg    *pgxpool.Config
 
-	// repositoryes
-	user  store.UserRepository
-	order store.OrderRepository
+	// repositories
+	user     store.UserRepository
+	order    store.OrderRepository
+	withdraw store.WithdrawRepository
 }
 
 // New ...
-func New(l logger.Logger, c *config.Config) (store.Storage, error) {
-	db, err := sql.Open("postgres", c.DBURI)
+func New(ctx context.Context, l logger.Logger, c *config.Config) (store.Storage, error) {
+	cfg, err := pgxpool.ParseConfig(c.DBURI)
 	if err != nil {
-		return nil, fmt.Errorf("sql open: %v", err)
+		return nil, pgError("parse config: %v", err)
 	}
 
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("ping db: %v", err)
+	db, err := pgxpool.ConnectConfig(ctx, cfg)
+	if err != nil {
+		return nil, pgError("sql open: %v", err)
+	}
+
+	if err := db.Ping(ctx); err != nil {
+		return nil, pgError("ping db: %v", err)
 	}
 
 	s := &storage{
-		db:    db,
-		user:  &userRepository{db, l},
-		order: &orderRepository{db, l},
-		l:     l,
+		db:     db,
+		logger: l,
+		cfg:    cfg,
+	}
+	s.user = &userRepository{s}
+	s.order = &orderRepository{s}
+	s.withdraw = &withdrawRepository{s}
+
+	if err := s.user.Migrate(context.Background()); err != nil {
+		return nil, pgError("user: migrate: %v", err)
+	}
+	if err := s.order.Migrate(context.Background()); err != nil {
+		return nil, pgError("orders: migrate: %v", err)
+	}
+	if err := s.withdraw.Migrate(context.Background()); err != nil {
+		return nil, pgError("withdraws: migrate: %v", err)
 	}
 
-	//TODO hardcoded variable rewrite migrate args
-	if err := s.migrate(""); err != nil {
-		return nil, fmt.Errorf("migrate: %v", err)
-	}
 	return s, nil
 }
 
@@ -55,7 +67,12 @@ func (s *storage) Order() store.OrderRepository {
 	return s.order
 }
 
+// Withdraws ...
+func (s *storage) Withdraws() store.WithdrawRepository {
+	return s.withdraw
+}
+
 // Close ...
-func (s *storage) Close() error {
-	return s.db.Close()
+func (s *storage) Close() {
+	s.db.Close()
 }
