@@ -41,7 +41,7 @@ func (s *OrderPoller) pollWork(poller int, t *task) {
 	case "REGISTERED":
 		s.queue <- t
 
-	case "INVALID":
+	case model.StatusInvalid:
 	case model.StatusProcessed:
 		if o.Accrual > 0 {
 			if err := s.store.User().IncrementBalance(ctx, t.User, o.Accrual); err != nil {
