@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
 	"github.com/lib/pq"
-	"strings"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgerrcode"
@@ -19,16 +19,6 @@ type userRepository struct {
 	s *storage
 }
 
-// debugQuery ...
-func debugQuery(q string) string {
-	q = strings.ReplaceAll(q, "\t", "")
-	q = strings.ReplaceAll(q, "\n", " ")
-	// this need if anywhere in query used spaces instead of \t
-	q = strings.ReplaceAll(q, "    ", "")
-	q = strings.ReplaceAll(q, "; ", ";")
-	return q
-}
-
 // Migrate ...
 func (r *userRepository) Migrate(ctx context.Context) error {
 	q := `
@@ -39,9 +29,11 @@ func (r *userRepository) Migrate(ctx context.Context) error {
 		balance money DEFAULT 0
 	);
 	`
-	r.s.logger.Debug(debugQuery(q))
 	if _, err := r.s.db.Exec(ctx, q); err != nil {
-		return pgError(err)
+		return SqlError{
+			error: fmt.Errorf("exec: %v", pgError(err)),
+			sql:   debugQuery(q),
+		}
 	}
 	return nil
 }
@@ -56,8 +48,6 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 		RETURNING id;
 	`
 
-	r.s.logger.WithField("request_id", middleware.GetReqID(ctx)).Debug(debugQuery(q))
-
 	if err := u.BeforeCreate(); err != nil {
 		return fmt.Errorf("before create: %v", err)
 	}
@@ -71,7 +61,10 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == pgerrcode.UniqueViolation {
 			return store.ErrLoginAlreadyInUse
 		}
-		return pgError(err)
+		return SqlError{
+			error: fmt.Errorf("scan: %v", pgError(err)),
+			sql:   debugQuery(q),
+		}
 	}
 
 	return nil
@@ -86,41 +79,38 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 		WHERE x.login=$1;
 	`
 	u := &model.User{Login: login}
-	id := middleware.GetReqID(ctx)
 
-	// trace request
-	r.s.logger.WithFields(logrus.Fields{
-		"request_id": id,
-	}).Debug(debugQuery(q))
-
-	// we don't need url model, just id
 	rows, err := r.s.db.Query(
 		ctx,
 		q,
 		login,
 	)
 	if err != nil {
-		r.s.logger.WithField("request_id", id).Tracef("err=%s get id by login=%s", err, login)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, store.ErrIncorrectLoginData
 		}
-		return nil, fmt.Errorf("query context: %v", pgError(err))
+		return nil, SqlError{
+			error: fmt.Errorf("query context: %v", pgError(err)),
+			sql:   debugQuery(q),
+		}
 	}
 
 	// check error from query context
 	// closing rows
 	defer rows.Close()
-	r.s.logger.WithField("request_id", id).Tracef("get id by login=%s", login)
 
 	// getting data
 	if rows.Next() {
 		if err := rows.Scan(&u.ID, &u.EncryptedPassword); err != nil {
-			return nil, fmt.Errorf("scan: %v", pgError(err))
+			return nil, SqlError{
+				error: fmt.Errorf("scan: %v", pgError(err)),
+				sql:   debugQuery(q),
+			}
 		}
 		return u, nil
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows err: %v", err)
+		return nil, fmt.Errorf("rows err: %v", pgError(err))
 	}
 	return nil, store.ErrIncorrectLoginData
 }

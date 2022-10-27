@@ -25,16 +25,16 @@ type storage struct {
 func New(ctx context.Context, l logger.Logger, c *config.Config) (store.Storage, error) {
 	cfg, err := pgxpool.ParseConfig(c.DBURI)
 	if err != nil {
-		return nil, fmt.Errorf("parse config: %v", err)
+		return nil, fmt.Errorf("parse config: %v", pgError(err))
 	}
 
 	db, err := pgxpool.ConnectConfig(ctx, cfg)
 	if err != nil {
-		return nil, fmt.Errorf("sql open: %v", err)
+		return nil, fmt.Errorf("sql open: %v", pgError(err))
 	}
 
 	if err := db.Ping(ctx); err != nil {
-		return nil, fmt.Errorf("ping db: %v", err)
+		return nil, fmt.Errorf("ping db: %v", pgError(err))
 	}
 
 	s := &storage{

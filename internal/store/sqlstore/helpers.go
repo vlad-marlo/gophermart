@@ -2,6 +2,8 @@ package sqlstore
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/lib/pq"
 )
 
@@ -14,4 +16,14 @@ func pgError(err error) error {
 		)
 	}
 	return err
+}
+
+// debugQuery ...
+func debugQuery(q string) string {
+	q = strings.ReplaceAll(q, "\t", "")
+	q = strings.ReplaceAll(q, "\n", " ")
+	// this need if anywhere in query used spaces instead of \t
+	q = strings.ReplaceAll(q, "    ", "")
+	q = strings.ReplaceAll(q, "; ", ";")
+	return q
 }
