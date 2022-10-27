@@ -99,11 +99,6 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 		q,
 		login,
 	)
-
-	// closing rows
-	defer rows.Close()
-
-	// check error from query context
 	if err != nil {
 		r.s.logger.WithField("request_id", id).Tracef("err=%s get id by login=%s", err, login)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -111,6 +106,10 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 		}
 		return nil, fmt.Errorf("query context: %v", pgError(err))
 	}
+
+	// check error from query context
+	// closing rows
+	defer rows.Close()
 	r.s.logger.WithField("request_id", id).Tracef("get id by login=%s", login)
 
 	// getting data
