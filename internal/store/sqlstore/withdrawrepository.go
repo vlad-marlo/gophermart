@@ -3,7 +3,6 @@ package sqlstore
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v4"
 	"github.com/vlad-marlo/gophermart/internal/model"
@@ -26,7 +25,7 @@ func (r *withdrawRepository) Migrate(ctx context.Context) error {
 		);`
 
 	if _, err := r.s.db.Exec(ctx, q); err != nil {
-		return sqlErr("query: %v", err, q)
+		return pgError("query: %v", err)
 	}
 	return nil
 }
@@ -62,20 +61,20 @@ func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Wi
 
 	tx, err := r.s.db.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("tx begin: %v", pgError(err))
+		return pgError("tx begin: %v", err)
 	}
 
 	defer func() {
 		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			r.s.logger.WithFields(map[string]interface{}{
 				"request_id": middleware.GetReqID(ctx),
-			}).Fatalf("unable to update drivers: %v", pgError(err))
+			}).Fatal(pgError("unable to update drivers: %v", err))
 			return
 		}
 	}()
 
 	if err := tx.QueryRow(ctx, qGetBal, user).Scan(&bal); err != nil {
-		return sqlErr("get balance: %v", err, qGetBal)
+		return pgError("get balance: %v", err)
 	}
 
 	if bal < w.Sum {
@@ -83,15 +82,15 @@ func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Wi
 	}
 
 	if _, err := tx.Exec(ctx, qWithdraw, w.Sum, user); err != nil {
-		return sqlErr("withdraw balance: %v", err, qWithdraw)
+		return pgError("withdraw balance: %v", err)
 	}
 
 	if _, err := tx.Exec(ctx, qInsertWithdrawal, user, w.Order, w.Sum); err != nil {
-		return sqlErr("update withdraw: %v", err, qInsertWithdrawal)
+		return pgError("update withdraw: %v", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("update drivers: %v", pgError(err))
+		return pgError("update drivers: %v", err)
 	}
 	return nil
 }
@@ -113,7 +112,7 @@ func (r *withdrawRepository) GetAllByUser(ctx context.Context, user int) (res []
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, store.ErrNoContent
 		}
-		return nil, sqlErr("query: %v", err, q)
+		return nil, pgError("query: %v", err)
 	}
 
 	defer rows.Close()
@@ -122,7 +121,7 @@ func (r *withdrawRepository) GetAllByUser(ctx context.Context, user int) (res []
 		o := new(model.Withdraw)
 
 		if err := rows.Scan(&o.Order, &o.Sum, &o.ProcessedAt); err != nil {
-			return nil, sqlErr("rows scan: %v", err, q)
+			return nil, pgError("rows scan: %v", err)
 		}
 
 		o.ToRepresentation()
@@ -130,7 +129,7 @@ func (r *withdrawRepository) GetAllByUser(ctx context.Context, user int) (res []
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, sqlErr("rows err: %v", err, q)
+		return nil, pgError("rows err: %v", err)
 	}
 
 	if len(res) == 0 {

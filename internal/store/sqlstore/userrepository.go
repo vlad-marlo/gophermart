@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-
 	"github.com/lib/pq"
 
 	"github.com/go-chi/chi/v5/middleware"
@@ -30,7 +29,7 @@ func (r *userRepository) Migrate(ctx context.Context) error {
 	);
 	`
 	if _, err := r.s.db.Exec(ctx, q); err != nil {
-		return sqlErr("exec: %v", err, q)
+		return pgError("exec: %v", err)
 	}
 	return nil
 }
@@ -55,10 +54,10 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 		u.Login,
 		u.EncryptedPassword,
 	).Scan(&u.ID); err != nil {
-		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == pgerrcode.UniqueViolation {
+		if pgErr, ok := err.(*pq.Error); ok && string(pgErr.Code) == pgerrcode.UniqueViolation {
 			return store.ErrLoginAlreadyInUse
 		}
-		return sqlErr("scan: %v", err, q)
+		return pgError("scan: %v", err)
 	}
 
 	return nil
@@ -83,7 +82,7 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, store.ErrIncorrectLoginData
 		}
-		return nil, sqlErr("query context: %v", err, q)
+		return nil, pgError("query context: %v", err)
 	}
 
 	// check error from query context
@@ -93,12 +92,12 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 	// getting data
 	if rows.Next() {
 		if err := rows.Scan(&u.ID, &u.EncryptedPassword); err != nil {
-			return nil, sqlErr("rows scan: %v", err, q)
+			return nil, pgError("rows scan: %v", err)
 		}
 		return u, nil
 	}
 	if err := rows.Err(); err != nil {
-		return nil, sqlErr("rows err: %v", err, q)
+		return nil, pgError("rows err: %v", err)
 	}
 	return nil, store.ErrIncorrectLoginData
 }
@@ -125,7 +124,7 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 		r.s.logger.WithFields(logrus.Fields{
 			"request_id": middleware.GetReqID(ctx),
 			"sql":        debugQuery(q),
-		}).Errorf("exists with id: scan: %v", pgError(err))
+		}).Error(pgError("exists with id: scan: %v", err))
 		return false
 	}
 	return res
@@ -152,20 +151,20 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model
 
 	rows, err := r.s.db.Query(ctx, q, id)
 	if err != nil {
-		return nil, sqlErr("exec query: %v", err, q)
+		return nil, pgError("exec query: %v", err)
 	}
 
 	defer rows.Close()
 
 	if rows.Next() {
 		if err := rows.Scan(&balance.Current, &balance.Withdrawn); err != nil {
-			return nil, sqlErr("rows scan: %v", err, q)
+			return nil, pgError("rows scan: %v", err)
 		}
 		return balance, nil
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, sqlErr("rows err: %v", err, q)
+		return nil, pgError("rows err: %v", err)
 	}
 
 	return nil, store.ErrNoContent
@@ -185,7 +184,7 @@ func (r *userRepository) IncrementBalance(ctx context.Context, id, add int) erro
 		return fmt.Errorf("check args: %v", store.ErrIncorrectData)
 	}
 	if _, err := r.s.db.Exec(ctx, q, add, id); err != nil {
-		return sqlErr("db exec: %v", err, q)
+		return pgError("db exec: %v", err)
 	}
 	return nil
 }

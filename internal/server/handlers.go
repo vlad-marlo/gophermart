@@ -85,14 +85,17 @@ func (s *server) handleAuthLogin() http.HandlerFunc {
 			s.error(w, fmt.Errorf("login: uncorrect request data: %v", err), fields, http.StatusBadRequest)
 			return
 		}
-		l.Trace("successful read data and unmarshal")
 
 		user, err := s.store.User().GetByLogin(r.Context(), req.Login)
 		if err != nil {
-			s.error(w, fmt.Errorf("login: unauthorized: %v", err), fields, http.StatusUnauthorized)
+			if errors.Is(err, store.ErrIncorrectLoginData) {
+				s.error(w, fmt.Errorf("login: unauthorized: %v", err), fields, http.StatusUnauthorized)
+				return
+			}
+			s.error(w, fmt.Errorf("get user by login: %v", err), fields, http.StatusInternalServerError)
+
 			return
 		}
-		l.Trace("got user by login")
 		if err := user.ComparePassword(req.Password); err != nil {
 			s.error(w, fmt.Errorf("login: compare pass: unauthorized: %v", err), fields, http.StatusUnauthorized)
 			return
@@ -133,30 +136,24 @@ func (s *server) handleOrdersPost() http.HandlerFunc {
 			return
 		}
 
-		l.Trace("successful read data")
-
 		num, err := strconv.Atoi(strNum)
 		if err != nil {
 			s.error(w, err, fields, http.StatusBadRequest)
 			return
 		}
-		l.Trace("successful get number")
 
 		if ok := luhn.Valid(num); !ok {
 			s.error(w, err, fields, http.StatusUnprocessableEntity)
 			return
 		}
-		l.Trace("request is valid")
 
 		u, err := GetUserIDFromRequest(r)
 		if err != nil {
 			s.error(w, err, fields, http.StatusUnauthorized)
 			return
 		}
-		l.Trace("successful get user from request")
 
 		if err := s.poller.Register(r.Context(), u, num); err != nil {
-			l.Tracef("poller register err", err)
 			var status int
 
 			if errors.Is(err, store.ErrAlreadyRegisteredByUser) {
@@ -181,7 +178,6 @@ func (s *server) handleOrdersGet() http.HandlerFunc {
 		fields := map[string]interface{}{
 			"request_id": reqID,
 		}
-		l := s.logger.WithFields(fields)
 		fields["handler"] = "get user orders"
 
 		w.Header().Set("Content-Type", "application/json")
@@ -191,7 +187,6 @@ func (s *server) handleOrdersGet() http.HandlerFunc {
 			s.error(w, err, fields, http.StatusInternalServerError)
 			return
 		}
-		l.Trace("successful got user from request")
 
 		orders, err := s.store.Order().GetAllByUser(r.Context(), u)
 		if err != nil {
@@ -202,7 +197,6 @@ func (s *server) handleOrdersGet() http.HandlerFunc {
 			s.error(w, err, fields, http.StatusInternalServerError)
 			return
 		}
-		l.Trace("successful get user orders")
 
 		if len(orders) == 0 {
 			s.error(w, err, fields, http.StatusNoContent)
@@ -214,7 +208,6 @@ func (s *server) handleOrdersGet() http.HandlerFunc {
 			s.error(w, fmt.Errorf("json marshal: %v", err), fields, http.StatusInternalServerError)
 			return
 		}
-		l.Trace("successful marshaled orders to resp data")
 
 		if _, err := w.Write(data); err != nil {
 			s.error(w, fmt.Errorf("write response: %v", err), fields, http.StatusInternalServerError)
@@ -232,7 +225,6 @@ func (s *server) handleBalanceGet() http.HandlerFunc {
 		fields := map[string]interface{}{
 			"request_id": reqID,
 		}
-		l := s.logger.WithFields(fields)
 		fields["handler"] = "get user balance"
 
 		id, err := GetUserIDFromRequest(r)
@@ -246,16 +238,15 @@ func (s *server) handleBalanceGet() http.HandlerFunc {
 			s.error(w, err, fields, http.StatusInternalServerError)
 			return
 		}
-		l.Trace("successful got user balance", b.Current)
+
 		data, err := json.Marshal(b)
 		if err != nil {
 			s.error(w, fmt.Errorf("json marshal: %v", err), fields, http.StatusInternalServerError)
 			return
 		}
-		l.Trace("successful marshaled")
 
 		if _, err := w.Write(data); err != nil {
-			s.error(w, fmt.Errorf("rw write: %v", err), fields, http.StatusInternalServerError)
+			s.error(w, fmt.Errorf("response writer: write data: %v", err), fields, http.StatusInternalServerError)
 		}
 	}
 }
@@ -268,7 +259,6 @@ func (s *server) handleBalanceWithdrawPost() http.HandlerFunc {
 		fields := map[string]interface{}{
 			"request_id": reqID,
 		}
-		l := s.logger.WithFields(fields)
 		fields["handler"] = "handle balance withdraw post"
 
 		user, err := GetUserIDFromRequest(r)
@@ -276,7 +266,6 @@ func (s *server) handleBalanceWithdrawPost() http.HandlerFunc {
 			s.error(w, fmt.Errorf("get user id from req: %v", err), fields, http.StatusUnauthorized)
 			return
 		}
-		l.Trace("successful get user from request")
 
 		defer func() {
 			if err := r.Body.Close(); err != nil {
@@ -289,31 +278,31 @@ func (s *server) handleBalanceWithdrawPost() http.HandlerFunc {
 			s.error(w, fmt.Errorf("read body data: %v", err), fields, http.StatusInternalServerError)
 			return
 		}
-		l.Trace("successful get body data")
 
 		var withdraw *model.Withdraw
 		if err := json.Unmarshal(data, &withdraw); err != nil {
 			s.error(w, fmt.Errorf("json unmarshal withdraw: %v", err), fields, http.StatusBadRequest)
 			return
 		}
-		l.Trace("successful json unmarshalled data")
 
 		if err := s.store.Withdraws().Withdraw(ctx, user, withdraw); err != nil {
-
 			var status int
 			switch {
+
 			case errors.Is(err, store.ErrPaymentRequired):
 				status = http.StatusPaymentRequired
+
 			case errors.Is(err, store.ErrNoContent):
 				status = http.StatusNoContent
+
 			default:
 				status = http.StatusInternalServerError
 			}
+
 			err = fmt.Errorf("withdraw: %v", err)
 			s.error(w, err, fields, status)
 			return
 		}
-		l.Trace("successful withdraw")
 		w.WriteHeader(http.StatusOK)
 	}
 }
@@ -325,9 +314,8 @@ func (s *server) handleGetAllWithdraws() http.HandlerFunc {
 		reqID := middleware.GetReqID(ctx)
 		fields := map[string]interface{}{
 			"request_id": reqID,
+			"handler":    "get all withdraws",
 		}
-		l := s.logger.WithFields(fields)
-		fields["handler"] = "get all withdraws"
 
 		w.Header().Set("Content-Type", "application/json")
 
@@ -336,10 +324,10 @@ func (s *server) handleGetAllWithdraws() http.HandlerFunc {
 			s.error(w, err, fields, http.StatusInternalServerError)
 			return
 		}
-		l.Trace("successful get user id from req")
 
 		withdrawals, err := s.store.Withdraws().GetAllByUser(ctx, id)
 		if err != nil {
+
 			err = fmt.Errorf("withdraws: get all by user: %v", err)
 			if errors.Is(err, store.ErrNoContent) {
 				s.error(w, err, fields, http.StatusNoContent)

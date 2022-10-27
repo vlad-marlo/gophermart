@@ -34,8 +34,9 @@ func (o *orderRepository) Migrate(ctx context.Context) error {
 			index_orders_number
 		ON orders(id);
 	`
+
 	if _, err := o.s.db.Exec(ctx, q); err != nil {
-		return sqlErr("exec query: %s: %v", err, q)
+		return pgError("exec query: %s: %v", err)
 	}
 
 	return nil
@@ -51,10 +52,9 @@ func (o *orderRepository) Register(ctx context.Context, user, number int) error 
 
 	if _, err := o.s.db.Exec(ctx, q, number, user); err != nil {
 		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == pgerrcode.UniqueViolation {
-
 			return o.getErrByNum(ctx, user, number)
 		}
-		return sqlErr("exec: %v", err, q)
+		return pgError("exec: %v", err)
 	}
 	return nil
 }
@@ -73,7 +73,7 @@ func (o *orderRepository) GetAllByUser(ctx context.Context, user int) (orders []
 
 	rows, err := o.s.db.Query(ctx, q, user)
 	if err != nil {
-		return nil, sqlErr("query: %v", err, q)
+		return nil, pgError("query: %v", err)
 	}
 
 	defer rows.Close()
@@ -83,14 +83,14 @@ func (o *orderRepository) GetAllByUser(ctx context.Context, user int) (orders []
 		o := new(model.Order)
 
 		if err := rows.Scan(&o.Number, &o.Status, &o.Accrual, &t); err != nil {
-			return nil, sqlErr("scan rows: %v", err, q)
+			return nil, pgError("scan rows: %v", err)
 		}
 		o.UploadedAt = t.Format(time.RFC3339)
 		orders = append(orders, o)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, sqlErr("rows err: %v", err, q)
+		return nil, pgError("rows err: %v", err)
 	}
 
 	return orders, nil
@@ -116,7 +116,7 @@ func (o *orderRepository) getErrByNum(ctx context.Context, user, number int) err
 
 	var statusByUser, statusByNum bool
 	if err := o.s.db.QueryRow(ctx, q, number, user, number).Scan(&statusByUser, &statusByNum); err != nil {
-		return sqlErr("query row: %v", err, q)
+		return pgError("query row: %v", err)
 	}
 
 	if statusByUser {
@@ -140,7 +140,7 @@ func (o *orderRepository) ChangeStatus(ctx context.Context, user int, m *model.O
 	`
 
 	if _, err := o.s.db.Exec(ctx, q, m.Status, m.Accrual, m.Number, user); err != nil {
-		return sqlErr("exec: %v", err, q)
+		return pgError("exec: %v", err)
 	}
 	return nil
 }
@@ -159,7 +159,7 @@ func (o *orderRepository) GetUnprocessedOrders(ctx context.Context) (res []*mode
 
 	rows, err := o.s.db.Query(ctx, q)
 	if err != nil {
-		return nil, sqlErr("db query: %v", err, q)
+		return nil, pgError("db query: %v", err)
 	}
 
 	defer rows.Close()
@@ -167,13 +167,13 @@ func (o *orderRepository) GetUnprocessedOrders(ctx context.Context) (res []*mode
 	for rows.Next() {
 		o := new(model.OrderInPoll)
 		if err := rows.Scan(&o.Number, &o.Status, &o.User); err != nil {
-			return nil, sqlErr("rows scan: %v", err, q)
+			return nil, pgError("rows scan: %v", err)
 		}
 		res = append(res, o)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, sqlErr("rows err: %v", err, q)
+		return nil, pgError("rows err: %v", err)
 	}
 
 	return res, nil

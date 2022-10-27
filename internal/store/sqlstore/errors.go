@@ -6,24 +6,15 @@ import (
 	"strings"
 )
 
-type SqlError struct {
-	error
-	sql string
-}
-
-func sqlErr(format string, err error, sql string) SqlError {
-	return SqlError{fmt.Errorf(format, pgError(err)), debugQuery(sql)}
-}
-
 // pgError checks err implements postgres error or not. If implements then returns error with postgres format or returns error
-func pgError(err error) error {
+func pgError(format string, err error) error {
 	if pgErr, ok := err.(*pq.Error); ok {
-		return fmt.Errorf(
-			"SQL error: %s, Detail: %s, Where: %s, Code: %s, State: %s",
-			pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState(),
-		)
+		return fmt.Errorf(format, fmt.Errorf(
+			"SQL error: %s, Detail: %s, Where: %s, State: %s, Code: %s",
+			pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.SQLState(), pgErr.Code,
+		))
 	}
-	return err
+	return fmt.Errorf(format, err)
 }
 
 // debugQuery ...

@@ -2,6 +2,7 @@ package sqlstore_test
 
 import (
 	"context"
+	"github.com/stretchr/testify/assert"
 	"testing"
 
 	"github.com/google/uuid"
@@ -42,9 +43,9 @@ func TestUserRepository_Create(t *testing.T) {
 			err := testStore.User().Create(context.TODO(), u)
 
 			if tc.wantErr == nil {
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			} else {
-				require.ErrorIs(t, err, tc.wantErr)
+				assert.ErrorIs(t, err, tc.wantErr)
 			}
 
 			u1, err := testStore.User().GetByLogin(context.TODO(), u.Login)

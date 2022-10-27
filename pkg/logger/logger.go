@@ -3,6 +3,7 @@ package logger
 import (
 	"errors"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"io"
 	"os"
 	"runtime"
@@ -154,7 +155,8 @@ func GetLogger() Logger {
 // DeleteLogFolderAndFile ...
 func DeleteLogFolderAndFile(t *testing.T) {
 	t.Helper()
-	_ = os.RemoveAll("logs")
+	require.NoError(t, os.RemoveAll("logs"))
+	require.NoDirExists(t, "logs")
 }
 
 // WithFields ...

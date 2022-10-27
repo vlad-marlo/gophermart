@@ -2,8 +2,6 @@ package sqlstore
 
 import (
 	"context"
-	"fmt"
-
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/vlad-marlo/gophermart/internal/config"
 	"github.com/vlad-marlo/gophermart/internal/store"
@@ -25,16 +23,16 @@ type storage struct {
 func New(ctx context.Context, l logger.Logger, c *config.Config) (store.Storage, error) {
 	cfg, err := pgxpool.ParseConfig(c.DBURI)
 	if err != nil {
-		return nil, fmt.Errorf("parse config: %v", pgError(err))
+		return nil, pgError("parse config: %v", err)
 	}
 
 	db, err := pgxpool.ConnectConfig(ctx, cfg)
 	if err != nil {
-		return nil, fmt.Errorf("sql open: %v", pgError(err))
+		return nil, pgError("sql open: %v", err)
 	}
 
 	if err := db.Ping(ctx); err != nil {
-		return nil, fmt.Errorf("ping db: %v", pgError(err))
+		return nil, pgError("ping db: %v", err)
 	}
 
 	s := &storage{
@@ -47,13 +45,13 @@ func New(ctx context.Context, l logger.Logger, c *config.Config) (store.Storage,
 	s.withdraw = &withdrawRepository{s}
 
 	if err := s.user.Migrate(context.Background()); err != nil {
-		return nil, fmt.Errorf("user: migrate: %v", err)
+		return nil, pgError("user: migrate: %v", err)
 	}
 	if err := s.order.Migrate(context.Background()); err != nil {
-		return nil, fmt.Errorf("orders: migrate: %v", err)
+		return nil, pgError("orders: migrate: %v", err)
 	}
 	if err := s.withdraw.Migrate(context.Background()); err != nil {
-		return nil, fmt.Errorf("withdraws: migrate: %v", err)
+		return nil, pgError("withdraws: migrate: %v", err)
 	}
 
 	return s, nil
