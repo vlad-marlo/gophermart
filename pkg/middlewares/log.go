@@ -36,11 +36,23 @@ func LogRequest(logger logger.Logger) func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			id := middleware.GetReqID(r.Context())
 			lrw := newLoggingRW(w)
+
 			// start check time
 			start := time.Now()
 			next.ServeHTTP(lrw, r)
 			dur := time.Now().Sub(start)
 
+			var level logrus.Level
+			switch {
+			case lrw.statusCode >= 500:
+				level = logrus.ErrorLevel
+			case lrw.statusCode >= 400:
+				level = logrus.WarnLevel
+			case lrw.statusCode >= 200:
+				level = logrus.DebugLevel
+			default:
+				level = logrus.TraceLevel
+			}
 			// log request
 			logger.WithFields(logrus.Fields{
 				"method":     r.Method,
@@ -48,7 +60,7 @@ func LogRequest(logger logger.Logger) func(next http.Handler) http.Handler {
 				"duration":   fmt.Sprint(dur),
 				"code":       lrw.statusCode,
 				"request_id": id,
-			}).Debug(http.StatusText(lrw.statusCode))
+			}).Log(level, fmt.Sprintf("status text: %s", http.StatusText(lrw.statusCode)))
 		})
 	}
 }

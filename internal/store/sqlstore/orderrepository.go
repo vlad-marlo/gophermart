@@ -8,7 +8,6 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/sirupsen/logrus"
 	"github.com/vlad-marlo/gophermart/internal/model"
 	"github.com/vlad-marlo/gophermart/internal/store"
 )
@@ -25,13 +24,9 @@ func (o *orderRepository) Migrate(ctx context.Context) error {
 			user_id BIGINT,
 			status VARCHAR(50) DEFAULT 'NEW',
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			accrual bigint
+			accrual bigint,
+			FOREIGN KEY (user_id) REFERENCES users(id)
 		);
-		ALTER TABLE IF EXISTS
-			orders
-		ADD CONSTRAINT
-			fk_user_order
-		FOREIGN KEY (user_id) REFERENCES users(id);
 		CREATE INDEX IF NOT EXISTS
 			index_user_id_orders
 		ON orders(user_id);
@@ -39,14 +34,8 @@ func (o *orderRepository) Migrate(ctx context.Context) error {
 			index_orders_number
 		ON orders(id);
 	`
-
-	o.s.logger.WithFields(logrus.Fields{
-		"sql": debugQuery(q),
-	})
 	if _, err := o.s.db.Exec(ctx, q); err != nil {
-		if pgErr, ok := err.(*pgconn.PgError); !(ok && pgErr.Code == pgerrcode.DuplicateObject) {
-			return fmt.Errorf("exec query %v", pgError(err))
-		}
+		return fmt.Errorf("exec query %v", pgError(err))
 	}
 
 	return nil

@@ -48,8 +48,7 @@ func (r *userRepository) Migrate(ctx context.Context) error {
 		id BIGSERIAL UNIQUE PRIMARY KEY NOT NULL,
 		login VARCHAR UNIQUE NOT NULL,
 		password VARCHAR NOT NULL,
-		balance money DEFAULT 0,
-		spent INT DEFAULT 0
+		balance money DEFAULT 0
 	);
 	`
 	r.s.logger.Debug(debugQuery(q))
@@ -176,9 +175,16 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model
 	balance = new(model.UserBalance)
 	q := `
 		SELECT 
-			balance::numeric::float4, spent
-		FROM 
-			users 
+			balance::numeric::float4, (
+				SELECT
+				    SUM(order_sum)
+				FROM
+				    withdrawals
+				WHERE
+				    user_id = $1
+			)
+		FROM
+			users
 		WHERE 
 			id = $1;
 	`

@@ -302,13 +302,17 @@ func (s *server) handleBalanceWithdrawPost() http.HandlerFunc {
 		l.Trace("successful json unmarshalled data")
 
 		if err := s.store.Withdraws().Withdraw(ctx, user, withdraw); err != nil {
-			err = fmt.Errorf("withdraw: %v", err)
+
 			var status int
-			if errors.Is(err, store.ErrPaymentRequired) {
+			switch {
+			case errors.Is(err, store.ErrPaymentRequired):
 				status = http.StatusPaymentRequired
-			} else {
+			case errors.Is(err, store.ErrNoContent):
+				status = http.StatusNoContent
+			default:
 				status = http.StatusInternalServerError
 			}
+			err = fmt.Errorf("withdraw: %v", err)
 			s.error(w, err, "", fields, status)
 			return
 		}
