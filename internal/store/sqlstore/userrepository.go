@@ -25,7 +25,7 @@ func (r *userRepository) Migrate(ctx context.Context) error {
 		id BIGSERIAL UNIQUE PRIMARY KEY NOT NULL,
 		login VARCHAR UNIQUE NOT NULL,
 		password VARCHAR NOT NULL,
-		balance money DEFAULT 0
+		balance FLOAT4 DEFAULT 0::float4
 	);
 	`
 	if _, err := r.s.db.Exec(ctx, q); err != nil {
@@ -132,20 +132,31 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 
 // GetBalance ...
 func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model.UserBalance, err error) {
+	// оно вроде работает
 	q := `
-		SELECT
-			balance::numeric::float4, (
-				SELECT
-				    SUM(order_sum)
-				FROM
-				    withdrawals
-				WHERE
-				    user_id = $1
-			)
-		FROM
-			users
-		WHERE
-			id = $1;
+	SELECT
+		balance::numeric::float4,
+		CASE WHEN (
+			SELECT
+				SUM(order_sum)
+			FROM
+				withdrawals
+			WHERE
+				user_id = $1
+		) IS NULL THEN 0::FLOAT4
+		ELSE (
+			SELECT
+				SUM(order_sum)
+			FROM
+				withdrawals
+			WHERE
+				user_id = $1
+		)
+		END
+	FROM
+		users
+	WHERE
+		id = $1;
 	`
 	balance = new(model.UserBalance)
 
@@ -171,12 +182,12 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model
 }
 
 // IncrementBalance ...
-func (r *userRepository) IncrementBalance(ctx context.Context, id, add int) error {
+func (r *userRepository) IncrementBalance(ctx context.Context, id int, add float32) error {
 	q := `
 		UPDATE
 			users
 		SET
-			balance = balance + $1::numeric::money
+			balance = balance + $1
 		WHERE
 			id = $2;
 	`

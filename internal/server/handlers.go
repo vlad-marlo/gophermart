@@ -51,8 +51,6 @@ func (s *server) handleAuthRegister() http.HandlerFunc {
 			return
 		}
 
-		l.Trace("successful authenticated")
-
 		s.authenticate(w, u.ID)
 		w.WriteHeader(http.StatusOK)
 	}
@@ -100,8 +98,6 @@ func (s *server) handleAuthLogin() http.HandlerFunc {
 			s.error(w, fmt.Errorf("login: compare pass: unauthorized: %v", err), fields, http.StatusUnauthorized)
 			return
 		}
-
-		l.Trace("successful authenticated")
 
 		s.authenticate(w, user.ID)
 		w.WriteHeader(http.StatusOK)

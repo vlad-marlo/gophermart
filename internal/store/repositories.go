@@ -19,7 +19,7 @@ type (
 		GetByLogin(ctx context.Context, login string) (*model.User, error)
 		ExistsWithID(ctx context.Context, id int) bool
 		GetBalance(ctx context.Context, id int) (balance *model.UserBalance, err error)
-		IncrementBalance(ctx context.Context, id, add int) error
+		IncrementBalance(ctx context.Context, id int, add float32) error
 	}
 	OrderRepository interface {
 		Migrate(ctx context.Context) error
