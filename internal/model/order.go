@@ -13,8 +13,8 @@ type (
 		User   int
 	}
 	OrderInAccrual struct {
-		Number  int    `json:"order,string"`
-		Status  string `json:"status"`
-		Accrual int    `json:"accrual,omitempty"`
+		Number  int     `json:"order,string"`
+		Status  string  `json:"status"`
+		Accrual float32 `json:"accrual,omitempty"`
 	}
 )

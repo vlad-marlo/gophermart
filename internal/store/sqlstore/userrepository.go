@@ -171,7 +171,7 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model
 }
 
 // IncrementBalance ...
-func (r *userRepository) IncrementBalance(ctx context.Context, id, add int) error {
+func (r *userRepository) IncrementBalance(ctx context.Context, id int, add float32) error {
 	q := `
 		UPDATE
 			users
