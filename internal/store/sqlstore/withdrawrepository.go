@@ -26,7 +26,7 @@ func (r *withdrawRepository) Migrate(ctx context.Context) error {
 		);`
 
 	if _, err := r.s.db.Exec(ctx, q); err != nil {
-		return fmt.Errorf("query: %v", pgError(err))
+		return sqlErr("query: %v", err, q)
 	}
 	return nil
 }
@@ -60,43 +60,34 @@ func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Wi
 	VALUES ($1, $2, $3);	                                                                        
 	`
 
-	fields := map[string]interface{}{
-		"request_id": middleware.GetReqID(ctx),
-	}
-	l := r.s.logger.WithFields(fields)
-
 	tx, err := r.s.db.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("tx begin: %v", pgError(err))
 	}
-	l.Trace("tx started")
 
 	defer func() {
 		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
-			l.Fatalf("unable to update drivers: %v", err)
+			r.s.logger.WithFields(map[string]interface{}{
+				"request_id": middleware.GetReqID(ctx),
+			}).Fatalf("unable to update drivers: %v", pgError(err))
 			return
 		}
-		l.Trace("tx rollbacked")
 	}()
 
 	if err := tx.QueryRow(ctx, qGetBal, user).Scan(&bal); err != nil {
-		return fmt.Errorf("get balance: %v", pgError(err))
+		return sqlErr("get balance: %v", err, qGetBal)
 	}
 
-	l.Trace("successful get balance")
 	if bal < w.Sum {
 		return store.ErrPaymentRequired
 	}
-	l.Trace("balance is ok")
 
 	if _, err := tx.Exec(ctx, qWithdraw, w.Sum, user); err != nil {
-		return fmt.Errorf("withdraw balance: %v", pgError(err))
+		return sqlErr("withdraw balance: %v", err, qWithdraw)
 	}
-	l.Trace("balance withdrawn successful")
 
 	if _, err := tx.Exec(ctx, qInsertWithdrawal, user, w.Order, w.Sum); err != nil {
-		l.WithField("sql", debugQuery(qInsertWithdrawal)).Tracef("%v", pgError(err))
-		return fmt.Errorf("update withdraw: %v", pgError(err))
+		return sqlErr("update withdraw: %v", err, qInsertWithdrawal)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -122,7 +113,7 @@ func (r *withdrawRepository) GetAllByUser(ctx context.Context, user int) (res []
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, store.ErrNoContent
 		}
-		return nil, fmt.Errorf("query: %v", pgError(err))
+		return nil, sqlErr("query: %v", err, q)
 	}
 
 	defer rows.Close()
@@ -131,7 +122,7 @@ func (r *withdrawRepository) GetAllByUser(ctx context.Context, user int) (res []
 		o := new(model.Withdraw)
 
 		if err := rows.Scan(&o.Order, &o.Sum, &o.ProcessedAt); err != nil {
-			return nil, fmt.Errorf("rows scan: %v", pgError(err))
+			return nil, sqlErr("rows scan: %v", err, q)
 		}
 
 		o.ToRepresentation()
@@ -139,7 +130,7 @@ func (r *withdrawRepository) GetAllByUser(ctx context.Context, user int) (res []
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows err: %v", pgError(err))
+		return nil, sqlErr("rows err: %v", err, q)
 	}
 
 	if len(res) == 0 {

@@ -30,10 +30,7 @@ func (r *userRepository) Migrate(ctx context.Context) error {
 	);
 	`
 	if _, err := r.s.db.Exec(ctx, q); err != nil {
-		return SqlError{
-			error: fmt.Errorf("exec: %v", pgError(err)),
-			sql:   debugQuery(q),
-		}
+		return sqlErr("exec: %v", err, q)
 	}
 	return nil
 }
@@ -61,10 +58,7 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == pgerrcode.UniqueViolation {
 			return store.ErrLoginAlreadyInUse
 		}
-		return SqlError{
-			error: fmt.Errorf("scan: %v", pgError(err)),
-			sql:   debugQuery(q),
-		}
+		return sqlErr("scan: %v", err, q)
 	}
 
 	return nil
@@ -89,10 +83,7 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, store.ErrIncorrectLoginData
 		}
-		return nil, SqlError{
-			error: fmt.Errorf("query context: %v", pgError(err)),
-			sql:   debugQuery(q),
-		}
+		return nil, sqlErr("query context: %v", err, q)
 	}
 
 	// check error from query context
@@ -102,15 +93,12 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 	// getting data
 	if rows.Next() {
 		if err := rows.Scan(&u.ID, &u.EncryptedPassword); err != nil {
-			return nil, SqlError{
-				error: fmt.Errorf("scan: %v", pgError(err)),
-				sql:   debugQuery(q),
-			}
+			return nil, sqlErr("rows scan: %v", err, q)
 		}
 		return u, nil
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows err: %v", pgError(err))
+		return nil, sqlErr("rows err: %v", err, q)
 	}
 	return nil, store.ErrIncorrectLoginData
 }
@@ -128,9 +116,6 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 				id=$1
 		);
 	`
-	r.s.logger.WithFields(logrus.Fields{
-		"request_id": middleware.GetReqID(ctx),
-	}).Debug(debugQuery(q))
 
 	if err := r.s.db.QueryRow(
 		ctx,
@@ -139,7 +124,8 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 	).Scan(&res); err != nil {
 		r.s.logger.WithFields(logrus.Fields{
 			"request_id": middleware.GetReqID(ctx),
-		}).Errorf("Exists with id: scan: %v", pgError(err))
+			"sql":        debugQuery(q),
+		}).Errorf("exists with id: scan: %v", pgError(err))
 		return false
 	}
 	return res
@@ -147,9 +133,8 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 
 // GetBalance ...
 func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model.UserBalance, err error) {
-	balance = new(model.UserBalance)
 	q := `
-		SELECT 
+		SELECT
 			balance::numeric::float4, (
 				SELECT
 				    SUM(order_sum)
@@ -160,31 +145,27 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model
 			)
 		FROM
 			users
-		WHERE 
+		WHERE
 			id = $1;
 	`
-	l := r.s.logger.WithFields(logrus.Fields{
-		"request_id": middleware.GetReqID(ctx),
-	})
+	balance = new(model.UserBalance)
 
-	l.Debug(debugQuery(q))
 	rows, err := r.s.db.Query(ctx, q, id)
 	if err != nil {
-		return nil, pgError(err)
+		return nil, sqlErr("exec query: %v", err, q)
 	}
 
 	defer rows.Close()
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows err: %v", err)
-	}
-
 	if rows.Next() {
 		if err := rows.Scan(&balance.Current, &balance.Withdrawn); err != nil {
-			return nil, fmt.Errorf("rows scan: %v", pgError(err))
+			return nil, sqlErr("rows scan: %v", err, q)
 		}
-		l.Trace("return balance")
 		return balance, nil
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, sqlErr("rows err: %v", err, q)
 	}
 
 	return nil, store.ErrNoContent
@@ -203,9 +184,8 @@ func (r *userRepository) IncrementBalance(ctx context.Context, id, add int) erro
 	if add <= 0 {
 		return fmt.Errorf("check args: %v", store.ErrIncorrectData)
 	}
-	r.s.logger.Debug(debugQuery(q))
 	if _, err := r.s.db.Exec(ctx, q, add, id); err != nil {
-		return fmt.Errorf("db exec: %v", pgError(err))
+		return sqlErr("db exec: %v", err, q)
 	}
 	return nil
 }

@@ -41,7 +41,7 @@ func TestStore(t *testing.T, con string) (store.Storage, func(...string)) {
 	return s, func(tables ...string) {
 		if len(tables) > 0 {
 			if _, err = db.Exec(context.TODO(), fmt.Sprintf("TRUNCATE %s CASCADE", strings.Join(tables, ", "))); err != nil {
-				s.logger.Warnf("defer func: trunctate test db: %v", pgError(err))
+				s.logger.Warnf("defer func: truncate test db: %v", pgError(err))
 			}
 		}
 		db.Close()

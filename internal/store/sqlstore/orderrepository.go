@@ -2,12 +2,10 @@ package sqlstore
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/lib/pq"
 
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgerrcode"
 
 	"github.com/vlad-marlo/gophermart/internal/model"
@@ -37,7 +35,7 @@ func (o *orderRepository) Migrate(ctx context.Context) error {
 		ON orders(id);
 	`
 	if _, err := o.s.db.Exec(ctx, q); err != nil {
-		return fmt.Errorf("exec query: %s: %v", debugQuery(q), pgError(err))
+		return sqlErr("exec query: %s: %v", err, q)
 	}
 
 	return nil
@@ -50,21 +48,18 @@ func (o *orderRepository) Register(ctx context.Context, user, number int) error 
 	VALUES 
 		($1, $2);
 	`
-	fields := map[string]interface{}{
-		"sql": debugQuery(q),
-	}
 
 	if _, err := o.s.db.Exec(ctx, q, number, user); err != nil {
 		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == pgerrcode.UniqueViolation {
 
 			return o.getErrByNum(ctx, user, number)
 		}
-		return fmt.Errorf("exec: %v", SqlError{pgError(err), fields})
+		return sqlErr("exec: %v", err, q)
 	}
 	return nil
 }
 
-func (o *orderRepository) GetAllByUser(ctx context.Context, user int) (res []*model.Order, err error) {
+func (o *orderRepository) GetAllByUser(ctx context.Context, user int) (orders []*model.Order, err error) {
 	q := `
 		SELECT 
 			x.id, x.status, x.accrual::numeric::int, x.created_at
@@ -75,14 +70,10 @@ func (o *orderRepository) GetAllByUser(ctx context.Context, user int) (res []*mo
 		ORDER BY
 		    x.created_at;
 	`
-	fields := map[string]interface{}{
-		"request_id": middleware.GetReqID(ctx),
-		"sql":        debugQuery(q),
-	}
 
 	rows, err := o.s.db.Query(ctx, q, user)
 	if err != nil {
-		return nil, fmt.Errorf("query: %v", SqlError{pgError(err), fields})
+		return nil, sqlErr("query: %v", err, q)
 	}
 
 	defer rows.Close()
@@ -92,17 +83,17 @@ func (o *orderRepository) GetAllByUser(ctx context.Context, user int) (res []*mo
 		o := new(model.Order)
 
 		if err := rows.Scan(&o.Number, &o.Status, &o.Accrual, &t); err != nil {
-			return nil, fmt.Errorf("scan rows: %v", SqlError{pgError(err), fields})
+			return nil, sqlErr("scan rows: %v", err, q)
 		}
 		o.UploadedAt = t.Format(time.RFC3339)
-		res = append(res, o)
+		orders = append(orders, o)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows err: %v", SqlError{pgError(err), fields})
+		return nil, sqlErr("rows err: %v", err, q)
 	}
 
-	return res, nil
+	return orders, nil
 }
 
 func (o *orderRepository) getErrByNum(ctx context.Context, user, number int) error {
@@ -122,22 +113,18 @@ func (o *orderRepository) getErrByNum(ctx context.Context, user, number int) err
 	    WHERE
 	        id = $3
 	);`
-	fields := map[string]interface{}{
-		"sql": debugQuery(q),
-	}
 
 	var statusByUser, statusByNum bool
 	if err := o.s.db.QueryRow(ctx, q, number, user, number).Scan(&statusByUser, &statusByNum); err != nil {
-		return fmt.Errorf("query row: %v", SqlError{pgError(err), fields})
+		return sqlErr("query row: %v", err, q)
 	}
 
 	if statusByUser {
 		return store.ErrAlreadyRegisteredByUser
-	}
-
-	if statusByNum {
+	} else if statusByNum {
 		return store.ErrAlreadyRegisteredByAnotherUser
 	}
+
 	return nil
 }
 
@@ -151,12 +138,9 @@ func (o *orderRepository) ChangeStatus(ctx context.Context, user int, m *model.O
 		WHERE
 			id = $3 AND user_id = $4;
 	`
-	fields := map[string]interface{}{
-		"sql": debugQuery(q),
-	}
 
 	if _, err := o.s.db.Exec(ctx, q, m.Status, m.Accrual, m.Number, user); err != nil {
-		return fmt.Errorf("exec: %v", SqlError{pgError(err), fields})
+		return sqlErr("exec: %v", err, q)
 	}
 	return nil
 }
@@ -172,13 +156,10 @@ func (o *orderRepository) GetUnprocessedOrders(ctx context.Context) (res []*mode
 		    x.status != 'PROCESSED'
 			AND x.status != 'INVALID';
 	`
-	fields := map[string]interface{}{
-		"sql": debugQuery(q),
-	}
 
 	rows, err := o.s.db.Query(ctx, q)
 	if err != nil {
-		return nil, fmt.Errorf("db query: %v", SqlError{pgError(err), fields})
+		return nil, sqlErr("db query: %v", err, q)
 	}
 
 	defer rows.Close()
@@ -186,13 +167,13 @@ func (o *orderRepository) GetUnprocessedOrders(ctx context.Context) (res []*mode
 	for rows.Next() {
 		o := new(model.OrderInPoll)
 		if err := rows.Scan(&o.Number, &o.Status, &o.User); err != nil {
-			return nil, fmt.Errorf("rows scan: %v", SqlError{pgError(err), fields})
+			return nil, sqlErr("rows scan: %v", err, q)
 		}
 		res = append(res, o)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows err: %v", SqlError{pgError(err), fields})
+		return nil, sqlErr("rows err: %v", err, q)
 	}
 
 	return res, nil
