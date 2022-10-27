@@ -32,8 +32,10 @@ func TestUserRepository_Create(t *testing.T) {
 		},
 	}
 	testStore, teardown := sqlstore.TestStore(t, conStr)
+
 	defer teardown("users")
 	defer logger.DeleteLogFolderAndFile(t)
+
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			u := model.TestUser(t, tc.login)

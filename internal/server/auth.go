@@ -32,12 +32,12 @@ func (s *server) CheckAuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		if err != nil {
-			s.error(w, fmt.Errorf("parse id from cookie: %v", err), "", fields, http.StatusUnauthorized)
+			s.error(w, fmt.Errorf("parse id from cookie: %v", err), fields, http.StatusUnauthorized)
 			return
 		}
 
 		if ok := s.store.User().ExistsWithID(r.Context(), id); !ok {
-			s.error(w, fmt.Errorf("auth middleware: exists with id: %v", err), InternalErrMsg, fields, http.StatusInternalServerError)
+			s.error(w, fmt.Errorf("auth middleware: exists with id: %v", err), fields, http.StatusInternalServerError)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
