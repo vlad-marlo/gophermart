@@ -186,16 +186,16 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model
 
 	defer rows.Close()
 
-	for rows.Next() {
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows err: %v", err)
+	}
+
+	if rows.Next() {
 		if err := rows.Scan(&balance.Current, &balance.Withdrawn); err != nil {
 			return nil, fmt.Errorf("rows scan: %v", pgError(err))
 		}
 		l.Trace("return balance")
 		return balance, nil
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows err: %v", err)
 	}
 
 	return nil, store.ErrNoContent

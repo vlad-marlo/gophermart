@@ -22,15 +22,8 @@ func (s *server) CheckAuthMiddleware(next http.Handler) http.Handler {
 			"request_id": reqID,
 			"middleware": "check auth middleware",
 		}
-		l := s.logger.WithFields(fields)
 
 		id, err := GetUserIDFromRequest(r)
-		if err != nil {
-			l.Tracef("get user id from request: %v", err)
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-
 		if err != nil {
 			s.error(w, fmt.Errorf("parse id from cookie: %v", err), fields, http.StatusUnauthorized)
 			return

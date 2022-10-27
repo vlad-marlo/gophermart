@@ -24,8 +24,11 @@ type storage struct {
 // New ...
 func New(ctx context.Context, l logger.Logger, c *config.Config) (store.Storage, error) {
 	cfg, err := pgxpool.ParseConfig(c.DBURI)
-	db, err := pgxpool.ConnectConfig(ctx, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("parse config: %v", err)
+	}
 
+	db, err := pgxpool.ConnectConfig(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("sql open: %v", err)
 	}
