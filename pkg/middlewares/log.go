@@ -40,7 +40,7 @@ func LogRequest(logger logger.Logger) func(next http.Handler) http.Handler {
 			// start check time
 			start := time.Now()
 			next.ServeHTTP(lrw, r)
-			dur := time.Now().Sub(start)
+			dur := time.Since(start)
 
 			var level logrus.Level
 			switch {
