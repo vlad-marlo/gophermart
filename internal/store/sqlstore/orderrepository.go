@@ -25,7 +25,7 @@ func (o *orderRepository) Migrate(ctx context.Context) error {
 			user_id BIGINT,
 			status VARCHAR(50) DEFAULT 'NEW',
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			accrual money
+			accrual bigint
 		);`,
 
 		`ALTER TABLE IF EXISTS
@@ -34,9 +34,12 @@ func (o *orderRepository) Migrate(ctx context.Context) error {
 			fk_user_order
 		FOREIGN KEY (user_id) REFERENCES users(id);`,
 
-		`CREATE UNIQUE INDEX IF NOT EXISTS
+		`CREATE INDEX IF NOT EXISTS
 			index_user_id_orders
 		ON orders(user_id);`,
+		`CREATE INDEX IF NOT EXISTS
+			index_orders_number
+		ON orders(id);`,
 	}
 
 	for i, q := range queries {
@@ -75,7 +78,7 @@ func (o *orderRepository) Register(ctx context.Context, user, number int) error 
 func (o *orderRepository) GetAllByUser(ctx context.Context, user int) (res []*model.Order, err error) {
 	q := `
 		SELECT 
-			x.id, x.status, x.accrual, x.created_at
+			x.id, x.status, x.accrual::numeric::int, x.created_at
 		FROM
 		    orders x
 		WHERE
@@ -92,13 +95,16 @@ func (o *orderRepository) GetAllByUser(ctx context.Context, user int) (res []*mo
 	for rows.Next() {
 		var (
 			t time.Time
-			o *model.Order
 		)
-		if err := pgError(rows.Scan(&o.Number, &o.Status, &t)); err != nil {
+		o := new(model.Order)
+		if err := pgError(rows.Scan(&o.Number, &o.Status, &o.Accrual, &t)); err != nil {
 			return nil, fmt.Errorf("scan rows: %v", err)
 		}
 		o.UploadedAt = t.Format(time.RFC3339)
 		res = append(res, o)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows err: %v", err)
 	}
 	return res, nil
 }
@@ -121,7 +127,10 @@ func (o *orderRepository) getErrByNum(ctx context.Context, user, number int) err
 	        id = $3
 	);
 	`
-	o.s.logger.WithField("request_id", middleware.GetReqID(ctx)).Trace(debugQuery(q))
+	o.s.logger.WithFields(map[string]interface{}{
+		"request_id": middleware.GetReqID(ctx),
+		"query":      debugQuery(q),
+	}).Trace(user, number)
 
 	var statusByUser, statusByNum bool
 	if err := o.s.db.QueryRow(ctx, q, number, user, number).Scan(&statusByUser, &statusByNum); err != nil {
