@@ -32,6 +32,9 @@ func TestUserRepository_Create(t *testing.T) {
 			wantErr: store.ErrLoginAlreadyInUse,
 		},
 	}
+	if conStr == "" {
+		t.Skip("conn string is not defined")
+	}
 	testStore, teardown := sqlstore.TestStore(t, conStr)
 
 	defer teardown("users")
@@ -68,6 +71,10 @@ func TestUserRepository_Create(t *testing.T) {
 // TestUserRepository_GetByLogin_UnExisting ...
 func TestUserRepository_GetByLogin_UnExisting(t *testing.T) {
 	var tt []string
+	if conStr == "" {
+		t.Skip("conn string is not defined")
+	}
+	
 	for i := 0; i < 10; i++ {
 		tt = append(tt, uuid.New().String())
 	}

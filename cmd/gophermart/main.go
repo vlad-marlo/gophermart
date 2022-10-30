@@ -32,35 +32,23 @@ func main() {
 	if err != nil {
 		log.Panicf("new sql store: %v", err)
 	}
+
 	p := poller.New(log, storage, cfg, pollerQueueLimit)
+
 	go func() {
-		log.Infof("starting server on %v", cfg.BindAddr)
 		if err := server.Start(log, storage, cfg, p); err != nil {
 			log.Panicf("start server: %v", err)
 		}
 	}()
 
-	// creating interrupt chan for accepting os signals
+	// creating interrupt chan for accepting os signals for graceful shut down
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGSEGV)
 
-	// gracefully shut down
-	var stringSignal string
 	sig := <-interrupt
-	switch sig {
-	case os.Interrupt:
-		stringSignal = "interrupt"
-	case syscall.SIGTERM:
-		stringSignal = "terminate"
-	case syscall.SIGINT:
-		stringSignal = "int"
-	case syscall.SIGSEGV:
-		stringSignal = "segmentation violation"
-	default:
-		stringSignal = "unknown"
-	}
 
 	p.Close()
 	storage.Close()
-	log.WithField("signal", stringSignal).Info("graceful shut down")
+
+	log.WithField("signal", sig.String()).Info("graceful shut down")
 }

@@ -20,6 +20,14 @@ func (s *OrderPoller) GetOrderFromAccrual(reqID string, number int) (o *model.Or
 	if err != nil {
 		return nil, fmt.Errorf("http get: %v", err)
 	}
+	defer func() {
+		if _, err := io.Copy(io.Discard, response.Body); err != nil {
+			l.Warnf("io copy: %v", err)
+		}
+		if err := response.Body.Close(); err != nil {
+			l.Warnf("get order form accrual: response body close: %v", err)
+		}
+	}()
 
 	switch response.StatusCode {
 	case http.StatusTooManyRequests:
@@ -27,20 +35,20 @@ func (s *OrderPoller) GetOrderFromAccrual(reqID string, number int) (o *model.Or
 	case http.StatusInternalServerError:
 		return nil, ErrInternal
 	case http.StatusNotFound:
-		return nil, ErrInternal
+		return nil, ErrNotFound
+	case http.StatusNoContent:
+		return nil, ErrNoContent
+	default:
 	}
-
-	defer func() {
-		if err := response.Body.Close(); err != nil {
-			l.Warnf("get order form accrual: response body close: %v", err)
-		}
-	}()
 
 	data, err := io.ReadAll(response.Body)
 	if err != nil {
 		return nil, fmt.Errorf("read body: %v", err)
 	}
-	l.Trace(string(data), response.StatusCode)
+	l.WithFields(map[string]interface{}{
+		"status": response.StatusCode,
+		"data":   string(data),
+	}).Trace(http.StatusText(response.StatusCode))
 	if err := json.Unmarshal(data, &o); err != nil {
 		return nil, fmt.Errorf("json unmarshal: %v", err)
 	}

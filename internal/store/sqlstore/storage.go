@@ -2,6 +2,8 @@ package sqlstore
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v4/log/logrusadapter"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/vlad-marlo/gophermart/internal/config"
 	"github.com/vlad-marlo/gophermart/internal/store"
@@ -25,6 +27,7 @@ func New(ctx context.Context, l logger.Logger, c *config.Config) (store.Storage,
 	if err != nil {
 		return nil, pgError("parse config: %v", err)
 	}
+	cfg.ConnConfig.Logger = logrusadapter.NewLogger(l.GetEntry())
 
 	db, err := pgxpool.ConnectConfig(ctx, cfg)
 	if err != nil {
@@ -47,9 +50,11 @@ func New(ctx context.Context, l logger.Logger, c *config.Config) (store.Storage,
 	if err := s.user.Migrate(context.Background()); err != nil {
 		return nil, pgError("user: migrate: %v", err)
 	}
+
 	if err := s.order.Migrate(context.Background()); err != nil {
 		return nil, pgError("orders: migrate: %v", err)
 	}
+
 	if err := s.withdraw.Migrate(context.Background()); err != nil {
 		return nil, pgError("withdraws: migrate: %v", err)
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/vlad-marlo/gophermart/internal/model"
+	"time"
 )
 
 // pollWork ...
@@ -16,10 +17,11 @@ func (s *OrderPoller) pollWork(poller int, t *task) {
 
 	o, err := s.GetOrderFromAccrual(t.ReqID, t.ID)
 	if err != nil {
-
-		if errors.Is(err, ErrInternal) || errors.Is(err, ErrTooManyRequests) {
-			s.queue <- t
-			return
+		if errors.Is(err, ErrTooManyRequests) {
+			go func() {
+				time.Sleep(10 * time.Second)
+				s.queue <- t
+			}()
 		}
 		return
 	}

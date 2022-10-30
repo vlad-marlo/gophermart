@@ -323,8 +323,8 @@ func (s *server) handleGetAllWithdraws() http.HandlerFunc {
 
 		withdrawals, err := s.store.Withdraws().GetAllByUser(ctx, id)
 		if err != nil {
+			err = fmt.Errorf("withdraws: get all by user: %w", err)
 
-			err = fmt.Errorf("withdraws: get all by user: %v", err)
 			if errors.Is(err, store.ErrNoContent) {
 				s.error(w, err, fields, http.StatusNoContent)
 				return
