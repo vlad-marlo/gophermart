@@ -67,7 +67,7 @@ func (o *orderRepository) GetAllByUser(ctx context.Context, user int) (orders []
 		FROM
 		    orders x
 		WHERE
-		    x.user_id = $1 AND x.accrual IS NOT NULL
+		    x.user_id = $1
 		ORDER BY
 		    x.created_at;
 	`)
