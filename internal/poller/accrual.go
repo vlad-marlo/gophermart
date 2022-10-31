@@ -45,10 +45,7 @@ func (s *OrderPoller) GetOrderFromAccrual(reqID string, number int) (o *model.Or
 	if err != nil {
 		return nil, fmt.Errorf("read body: %v", err)
 	}
-	l.WithFields(map[string]interface{}{
-		"status": response.StatusCode,
-		"data":   string(data),
-	}).Trace(http.StatusText(response.StatusCode))
+
 	if err := json.Unmarshal(data, &o); err != nil {
 		return nil, fmt.Errorf("json unmarshal: %v", err)
 	}

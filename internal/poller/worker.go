@@ -28,33 +28,30 @@ func (s *OrderPoller) pollWork(poller int, t *task) {
 
 	switch o.Status {
 
-	case "PROCESSING":
-		if o.Status == model.StatusProcessing {
-			s.queue <- &task{t.ID, t.User, model.StatusProcessing, t.ReqID}
-			return
-		}
-
+	case model.StatusProcessing:
 		o.Status = model.StatusProcessing
 		if err := s.store.Order().ChangeStatus(ctx, t.User, o); err != nil {
 			l.Warnf("change status: %v", err)
 		}
-		s.queue <- &task{t.ID, t.User, model.StatusProcessing, t.ReqID}
+		s.queue <- &task{t.ID, t.User, t.ReqID}
 
 	case "REGISTERED":
 		s.queue <- t
 
 	case model.StatusInvalid:
 		if err := s.store.Order().ChangeStatus(ctx, t.User, o); err != nil {
+			s.queue <- &task{t.ID, t.User, t.ReqID}
 			l.Warnf("change status: %v", err)
 		}
 	case model.StatusProcessed:
 		if o.Accrual > 0.0 {
-			if err := s.store.User().IncrementBalance(ctx, t.User, o.Accrual); err != nil {
-				l.Tracef("increment user balance: %v", err)
+			if err := s.store.Order().ChangeStatusAndIncrementUserBalance(ctx, t.User, o); err != nil {
+				s.queue <- &task{t.ID, t.User, t.ReqID}
 			}
-			l.Trace("successful incremented balance")
+			return
 		}
 		if err := s.store.Order().ChangeStatus(ctx, t.User, o); err != nil {
+			s.queue <- &task{t.ID, t.User, t.ReqID}
 			l.Warnf("change status: %v", err)
 		}
 

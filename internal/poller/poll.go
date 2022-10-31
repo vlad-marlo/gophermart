@@ -4,15 +4,14 @@ import (
 	"context"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/vlad-marlo/gophermart/internal/config"
-	"github.com/vlad-marlo/gophermart/internal/model"
 	"github.com/vlad-marlo/gophermart/internal/store"
 	"github.com/vlad-marlo/gophermart/pkg/logger"
 )
 
 type (
 	task struct {
-		ID, User      int
-		Status, ReqID string
+		ID, User int
+		ReqID    string
 	}
 	OrderPoller struct {
 		queue  chan *task
@@ -40,10 +39,9 @@ func New(l logger.Logger, s store.Storage, cfg *config.Config, limit int) *Order
 		}
 		for _, order := range orders {
 			o.queue <- &task{
-				ID:     order.Number,
-				User:   order.User,
-				Status: order.Status,
-				ReqID:  "init poller",
+				ID:    order.Number,
+				User:  order.User,
+				ReqID: "init poller",
 			}
 		}
 	}()
@@ -78,7 +76,7 @@ func (s *OrderPoller) Register(ctx context.Context, user, num int) error {
 
 	go func() {
 		reqID := middleware.GetReqID(ctx)
-		s.queue <- &task{num, user, model.StatusNew, reqID}
+		s.queue <- &task{num, user, reqID}
 	}()
 	return nil
 }

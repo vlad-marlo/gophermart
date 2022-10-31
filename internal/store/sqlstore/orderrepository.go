@@ -2,7 +2,10 @@ package sqlstore
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx/v4"
 	"time"
 
 	"github.com/jackc/pgerrcode"
@@ -22,7 +25,7 @@ func (o *orderRepository) Migrate(ctx context.Context) error {
 			user_id BIGINT,
 			status VARCHAR(50) DEFAULT 'NEW',
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			accrual float4,
+			accrual DOUBLE PRECISION,
 			FOREIGN KEY (user_id) REFERENCES users(id)
 		);
 		CREATE INDEX IF NOT EXISTS
@@ -58,7 +61,6 @@ func (o *orderRepository) Register(ctx context.Context, user, number int) error 
 }
 
 func (o *orderRepository) GetAllByUser(ctx context.Context, user int) (orders []*model.Order, err error) {
-	// TODO: FIX 500 ERR
 	q := debugQuery(`
 		SELECT 
 			x.id, x.status, x.accrual, x.created_at
@@ -133,7 +135,7 @@ func (o *orderRepository) ChangeStatus(ctx context.Context, user int, m *model.O
 			orders
 		SET
 			status = $1,
-			accrual = $2
+			accrual = $2::DOUBLE PRECISION
 		WHERE
 			id = $3 AND user_id = $4;
 	`)
@@ -177,4 +179,49 @@ func (o *orderRepository) GetUnprocessedOrders(ctx context.Context) (res []*mode
 	}
 
 	return res, nil
+}
+
+func (o *orderRepository) ChangeStatusAndIncrementUserBalance(ctx context.Context, user int, m *model.OrderInAccrual) error {
+	qUpdateStatus := debugQuery(`
+		UPDATE
+			orders
+		SET
+			status = $1,
+			accrual = $2::DOUBLE PRECISION
+		WHERE
+			id = $3 AND user_id = $4;
+	`)
+	qIncrementBalance := `
+		UPDATE
+			users
+		SET
+		    balance = balance + $1::DOUBLE PRECISION
+		WHERE
+		    id = $2;
+	`
+
+	tx, err := o.s.db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("start transaction: %w", err)
+	}
+
+	defer func() {
+		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
+			o.s.logger.Errorf("update drivers: unable to rollback: %w", err)
+		}
+	}()
+
+	if _, err := tx.Exec(ctx, qUpdateStatus, m.Status, m.Accrual, m.Number, user); err != nil {
+		return fmt.Errorf("update order: %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, qIncrementBalance, m.Accrual, user); err != nil {
+		return fmt.Errorf("increment user balance: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("update drivers: unable to commmit: %w", err)
+	}
+
+	return nil
 }

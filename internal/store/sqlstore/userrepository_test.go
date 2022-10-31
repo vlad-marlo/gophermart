@@ -50,6 +50,45 @@ func TestUserRepository_Create(t *testing.T) {
 			} else {
 				assert.ErrorIs(t, err, tc.wantErr)
 			}
+		})
+	}
+}
+
+func TestUserRepository_GetByLogin(t *testing.T) {
+	tt := []struct {
+		name    string
+		login   string
+		wantErr error
+	}{
+		{
+			name:    "good test case #1",
+			login:   "login",
+			wantErr: nil,
+		},
+		{
+			name:    "duplicate login #1",
+			login:   "login",
+			wantErr: store.ErrLoginAlreadyInUse,
+		},
+	}
+	if conStr == "" {
+		t.Skip("conn string is not defined")
+	}
+	testStore, teardown := sqlstore.TestStore(t, conStr)
+
+	defer teardown("users")
+	defer logger.DeleteLogFolderAndFile(t)
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			u := model.TestUser(t, tc.login)
+			err := testStore.User().Create(context.TODO(), u)
+
+			if tc.wantErr == nil {
+				assert.NoError(t, err)
+			} else {
+				assert.ErrorIs(t, err, tc.wantErr)
+			}
 
 			u1, err := testStore.User().GetByLogin(context.TODO(), u.Login)
 			if tc.wantErr == nil {
@@ -74,7 +113,7 @@ func TestUserRepository_GetByLogin_UnExisting(t *testing.T) {
 	if conStr == "" {
 		t.Skip("conn string is not defined")
 	}
-	
+
 	for i := 0; i < 10; i++ {
 		tt = append(tt, uuid.New().String())
 	}

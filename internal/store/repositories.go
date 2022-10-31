@@ -27,6 +27,7 @@ type (
 		GetAllByUser(ctx context.Context, user int) (res []*model.Order, err error)
 		ChangeStatus(ctx context.Context, user int, m *model.OrderInAccrual) error
 		GetUnprocessedOrders(ctx context.Context) ([]*model.OrderInPoll, error)
+		ChangeStatusAndIncrementUserBalance(ctx context.Context, user int, m *model.OrderInAccrual) error
 	}
 	WithdrawRepository interface {
 		Migrate(ctx context.Context) error
