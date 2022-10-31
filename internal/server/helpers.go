@@ -11,7 +11,7 @@ import (
 
 // error ...
 func (s *server) error(w http.ResponseWriter, err error, fields map[string]interface{}, status int) {
-	http.Error(w, "", status)
+	w.WriteHeader(status)
 	var lvl logrus.Level
 	switch {
 	case status >= 500:
