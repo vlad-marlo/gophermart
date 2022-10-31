@@ -16,7 +16,6 @@ type (
 		http.ResponseWriter
 		statusCode int
 	}
-	// universal interface for logger middleware
 )
 
 // newLoggingRW ...
@@ -47,8 +46,6 @@ func LogRequest(logger logger.Logger) func(next http.Handler) http.Handler {
 			case lrw.statusCode >= 500:
 				level = logrus.ErrorLevel
 			case lrw.statusCode >= 400:
-				level = logrus.WarnLevel
-			case lrw.statusCode >= 200:
 				level = logrus.DebugLevel
 			default:
 				level = logrus.TraceLevel
