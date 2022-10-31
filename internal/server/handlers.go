@@ -180,7 +180,7 @@ func (s *server) handleOrdersGet() http.HandlerFunc {
 
 		u, err := GetUserIDFromRequest(r)
 		if err != nil {
-			s.error(w, err, fields, http.StatusInternalServerError)
+			s.error(w, err, fields, http.StatusUnauthorized)
 			return
 		}
 
@@ -191,11 +191,6 @@ func (s *server) handleOrdersGet() http.HandlerFunc {
 				return
 			}
 			s.error(w, err, fields, http.StatusInternalServerError)
-			return
-		}
-
-		if len(orders) == 0 {
-			s.error(w, err, fields, http.StatusNoContent)
 			return
 		}
 

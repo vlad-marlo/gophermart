@@ -94,6 +94,10 @@ func (o *orderRepository) GetAllByUser(ctx context.Context, user int) (orders []
 		return nil, pgError("rows err: %w", err)
 	}
 
+	if len(orders) == 0 {
+		return nil, store.ErrNoContent
+	}
+
 	return orders, nil
 }
 
