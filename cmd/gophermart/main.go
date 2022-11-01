@@ -14,7 +14,7 @@ import (
 	"github.com/vlad-marlo/gophermart/internal/store/sqlstore"
 )
 
-const pollerQueueLimit = 20
+const pollerQueueLimit = 10
 
 func main() {
 	// init logger
