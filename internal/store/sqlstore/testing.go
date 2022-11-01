@@ -34,7 +34,18 @@ func TestStore(t *testing.T, con string) (store.Storage, func(...string)) {
 		logger: l,
 	}
 	s.user = &userRepository{s}
+	s.order = &orderRepository{s}
+	s.withdraw = &withdrawRepository{s}
+
 	if err := s.user.Migrate(context.Background()); err != nil {
+		s.logger.Warnf("migrate: %v", err)
+	}
+
+	if err := s.order.Migrate(context.Background()); err != nil {
+		s.logger.Warnf("migrate: %v", err)
+	}
+
+	if err := s.withdraw.Migrate(context.Background()); err != nil {
 		s.logger.Warnf("migrate: %v", err)
 	}
 

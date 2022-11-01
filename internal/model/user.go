@@ -14,8 +14,8 @@ type (
 		EncryptedPassword string `json:"-"`
 	}
 	UserBalance struct {
-		Current   float32 `json:"current"`
-		Withdrawn float32 `json:"withdrawn"`
+		Current   float64 `json:"current"`
+		Withdrawn float64 `json:"withdrawn"`
 	}
 )
 

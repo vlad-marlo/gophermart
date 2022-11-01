@@ -89,14 +89,14 @@ func init() {
 		DisableSorting:         false,
 		DisableLevelTruncation: true,
 		PadLevelText:           false,
-		CallerPrettyfier:       callerPrettyfier,
+		CallerPrettyfier:       callerPrettier,
 	}
 
 	jsonFormatter = &logrus.JSONFormatter{
 		TimestampFormat:   time.RFC3339,
 		DisableTimestamp:  false,
 		DisableHTMLEscape: false,
-		CallerPrettyfier:  callerPrettyfier,
+		CallerPrettyfier:  callerPrettier,
 		PrettyPrint:       false,
 	}
 
@@ -137,7 +137,7 @@ func init() {
 func (h *writerHook) Fire(e *logrus.Entry) error {
 	line, err := e.String()
 	if err != nil {
-		return fmt.Errorf("entry: String(); %v", err)
+		return fmt.Errorf("entry: String(); %w", err)
 	}
 	for _, w := range h.Writer {
 		_, _ = w.Write([]byte(line))
@@ -181,7 +181,7 @@ func (l *logger) GetLevel() uint32 {
 	return uint32(l.Entry.Level)
 }
 
-func callerPrettyfier(f *runtime.Frame) (function string, file string) {
+func callerPrettier(f *runtime.Frame) (function string, file string) {
 
 	function = f.Function
 	stripped := strings.Split(function, "/")

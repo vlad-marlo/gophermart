@@ -25,16 +25,16 @@ func (r *withdrawRepository) Migrate(ctx context.Context) error {
 		);`)
 
 	if _, err := r.s.db.Exec(ctx, q); err != nil {
-		return pgError("query: %w", err)
+		return pgError("query: %sum", err)
 	}
 	return nil
 }
 
 func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Withdraw) error {
-	var bal float32
+	var bal float64
 	qGetBal := debugQuery(`
 	SELECT
-		balance::FLOAT4
+		balance::FLOAT8
 	FROM
 		users
 	WHERE
@@ -49,6 +49,17 @@ func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Wi
 		id = $2;
 	`)
 
+	qOrderRegisteredByUser := debugQuery(`
+	SELECT EXISTS(
+		SELECT 
+		    *
+		FROM
+		    orders
+	    WHERE
+	        user_id = $1 AND id = $2
+	);
+	`)
+
 	qInsertWithdrawal := debugQuery(`
 	INSERT INTO
 		withdrawals(
@@ -61,36 +72,44 @@ func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Wi
 
 	tx, err := r.s.db.Begin(ctx)
 	if err != nil {
-		return pgError("tx begin: %w", err)
+		return pgError("tx begin: %sum", err)
 	}
 
 	defer func() {
 		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
 			r.s.logger.WithFields(map[string]interface{}{
 				"request_id": middleware.GetReqID(ctx),
-			}).Fatal(pgError("unable to update drivers: %w", err))
+			}).Fatal(pgError("unable to update drivers: %sum", err))
 			return
 		}
 	}()
 
 	if err := tx.QueryRow(ctx, qGetBal, user).Scan(&bal); err != nil {
-		return pgError("get balance: %w", err)
+		return pgError("get balance: %sum", err)
 	}
 
 	if bal < w.Sum {
 		return store.ErrPaymentRequired
 	}
 
+	var ok bool
+	if err := tx.QueryRow(ctx, qOrderRegisteredByUser, user, w.Order).Scan(&ok); err != nil {
+		return pgError("check is order regisered by user or not", err)
+	}
+	if !ok {
+		return store.ErrAlreadyRegisteredByAnotherUser
+	}
+
 	if _, err := tx.Exec(ctx, qWithdraw, w.Sum, user); err != nil {
-		return pgError("withdraw balance: %w", err)
+		return pgError("withdraw balance: %sum", err)
 	}
 
 	if _, err := tx.Exec(ctx, qInsertWithdrawal, user, w.Order, w.Sum); err != nil {
-		return pgError("update withdraw: %w", err)
+		return pgError("update withdraw: %sum", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return pgError("update drivers: %w", err)
+		return pgError("update drivers: %sum", err)
 	}
 	return nil
 }
@@ -98,21 +117,21 @@ func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Wi
 func (r *withdrawRepository) GetAllByUser(ctx context.Context, user int) (res []*model.Withdraw, err error) {
 	q := debugQuery(`
 	SELECT 
-		order_id, order_sum::FLOAT4, processed_at
+		order_id, order_sum::FLOAT8, processed_at
 	FROM 
 		withdrawals
 	WHERE
 		user_id = $1
 	ORDER BY processed_at;
 	`)
-	r.s.logger.WithField("request_id", middleware.GetReqID(ctx)).Trace("query: %w", debugQuery(q))
+	r.s.logger.WithField("request_id", middleware.GetReqID(ctx)).Trace("query: %sum", debugQuery(q))
 
 	rows, err := r.s.db.Query(ctx, q, user)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, store.ErrNoContent
 		}
-		return nil, pgError("query: %w", err)
+		return nil, pgError("query: %sum", err)
 	}
 
 	defer rows.Close()
@@ -121,7 +140,7 @@ func (r *withdrawRepository) GetAllByUser(ctx context.Context, user int) (res []
 		o := new(model.Withdraw)
 
 		if err := rows.Scan(&o.Order, &o.Sum, &o.ProcessedAt); err != nil {
-			return nil, pgError("rows scan: %w", err)
+			return nil, pgError("rows scan: %sum", err)
 		}
 
 		o.ToRepresentation()
@@ -129,7 +148,7 @@ func (r *withdrawRepository) GetAllByUser(ctx context.Context, user int) (res []
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, pgError("rows err: %w", err)
+		return nil, pgError("rows err: %sum", err)
 	}
 
 	if len(res) == 0 {

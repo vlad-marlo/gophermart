@@ -33,21 +33,21 @@ func (s *server) handleAuthRegister() http.HandlerFunc {
 		}()
 		data, err := io.ReadAll(r.Body)
 		if err != nil {
-			s.error(w, fmt.Errorf("auth: register: read data from request: %v", err), fields, http.StatusInternalServerError)
+			s.error(w, fmt.Errorf("auth: register: read data from request: %w", err), fields, http.StatusInternalServerError)
 			return
 		}
 
 		if err := json.Unmarshal(data, &u); err != nil {
-			s.error(w, fmt.Errorf("json unmarshal: %v", err), fields, http.StatusBadRequest)
+			s.error(w, fmt.Errorf("json unmarshal: %w", err), fields, http.StatusBadRequest)
 			return
 		}
 
 		if err := s.store.User().Create(r.Context(), u); err != nil {
 			if errors.Is(err, store.ErrLoginAlreadyInUse) {
-				s.error(w, fmt.Errorf("auth register: create user: %v", err), fields, http.StatusConflict)
+				s.error(w, fmt.Errorf("auth register: create user: %w", err), fields, http.StatusConflict)
 				return
 			}
-			s.error(w, fmt.Errorf("auth register: create user: %v", err), fields, http.StatusInternalServerError)
+			s.error(w, fmt.Errorf("auth register: create user: %w", err), fields, http.StatusInternalServerError)
 			return
 		}
 
@@ -75,27 +75,27 @@ func (s *server) handleAuthLogin() http.HandlerFunc {
 
 		data, err := io.ReadAll(r.Body)
 		if err != nil {
-			s.error(w, fmt.Errorf("auth: register: read data from request: %v", err), fields, http.StatusInternalServerError)
+			s.error(w, fmt.Errorf("auth: register: read data from request: %w", err), fields, http.StatusInternalServerError)
 			return
 		}
 
 		if err := json.Unmarshal(data, &req); err != nil {
-			s.error(w, fmt.Errorf("login: uncorrect request data: %v", err), fields, http.StatusBadRequest)
+			s.error(w, fmt.Errorf("login: uncorrect request data: %w", err), fields, http.StatusBadRequest)
 			return
 		}
 
 		user, err := s.store.User().GetByLogin(r.Context(), req.Login)
 		if err != nil {
 			if errors.Is(err, store.ErrIncorrectLoginData) {
-				s.error(w, fmt.Errorf("login: unauthorized: %v", err), fields, http.StatusUnauthorized)
+				s.error(w, fmt.Errorf("login: unauthorized: %w", err), fields, http.StatusUnauthorized)
 				return
 			}
-			s.error(w, fmt.Errorf("get user by login: %v", err), fields, http.StatusInternalServerError)
+			s.error(w, fmt.Errorf("get user by login: %w", err), fields, http.StatusInternalServerError)
 
 			return
 		}
 		if err := user.ComparePassword(req.Password); err != nil {
-			s.error(w, fmt.Errorf("login: compare pass: unauthorized: %v", err), fields, http.StatusUnauthorized)
+			s.error(w, fmt.Errorf("login: compare pass: unauthorized: %w", err), fields, http.StatusUnauthorized)
 			return
 		}
 
@@ -285,12 +285,14 @@ func (s *server) handleBalanceWithdrawPost() http.HandlerFunc {
 
 			case errors.Is(err, store.ErrNoContent):
 				status = http.StatusNoContent
+			case errors.Is(err, store.ErrAlreadyRegisteredByAnotherUser):
+				status = http.StatusBadRequest
 
 			default:
 				status = http.StatusInternalServerError
 			}
 
-			err = fmt.Errorf("withdraw: %v", err)
+			err = fmt.Errorf("withdraw: %w", err)
 			s.error(w, err, fields, status)
 			return
 		}
