@@ -25,7 +25,7 @@ func (o *orderRepository) Migrate(ctx context.Context) error {
 			user_id BIGINT,
 			status VARCHAR(50) DEFAULT 'NEW',
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			accrual DOUBLE PRECISION,
+			accrual FLOAT,
 			FOREIGN KEY (user_id) REFERENCES users(id)
 		);
 		CREATE INDEX IF NOT EXISTS

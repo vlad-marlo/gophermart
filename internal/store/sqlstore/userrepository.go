@@ -24,7 +24,7 @@ func (r *userRepository) Migrate(ctx context.Context) error {
 		id BIGSERIAL UNIQUE PRIMARY KEY NOT NULL,
 		login VARCHAR UNIQUE NOT NULL,
 		password VARCHAR NOT NULL,
-		balance DOUBLE PRECISION DEFAULT 0::DOUBLE PRECISION
+		balance FLOAT4 DEFAULT 0.0
 	);
 	`)
 	if _, err := r.s.db.Exec(ctx, q); err != nil {
@@ -142,7 +142,7 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model
 				withdrawals
 			WHERE
 				user_id = $1
-		) IS NULL THEN 0::FLOAT4
+		) IS NULL THEN 0.0
 		ELSE (
 			SELECT
 				SUM(order_sum)
@@ -186,7 +186,7 @@ func (r *userRepository) IncrementBalance(ctx context.Context, id int, add float
 		UPDATE
 			users
 		SET
-			balance = balance + $1::DOUBLE PRECISION
+			balance = balance + $1::FLOAT4
 		WHERE
 			id = $2;
 	`)

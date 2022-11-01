@@ -34,7 +34,7 @@ func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Wi
 	var bal float32
 	qGetBal := debugQuery(`
 	SELECT
-		balance::numeric::float4
+		balance
 	FROM
 		users
 	WHERE
@@ -44,7 +44,7 @@ func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Wi
 	UPDATE
 		users
 	SET
-		balance = balance - $1::numeric::money
+		balance = balance - $1
 	WHERE
 		id = $2;
 	`)
