@@ -25,7 +25,7 @@ func (o *orderRepository) Migrate(ctx context.Context) error {
 			user_id BIGINT,
 			status VARCHAR(50) DEFAULT 'NEW',
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			accrual FLOAT,
+			accrual DOUBLE PRECISION DEFAULT 0::DOUBLE PRECISION,
 			FOREIGN KEY (user_id) REFERENCES users(id)
 		);
 		CREATE INDEX IF NOT EXISTS
@@ -63,7 +63,7 @@ func (o *orderRepository) Register(ctx context.Context, user, number int) error 
 func (o *orderRepository) GetAllByUser(ctx context.Context, user int) (orders []*model.Order, err error) {
 	q := debugQuery(`
 		SELECT 
-			x.id, x.status, x.accrual, x.created_at
+			x.id, x.status, x.accrual::FLOAT4, x.created_at
 		FROM
 		    orders x
 		WHERE
@@ -139,7 +139,7 @@ func (o *orderRepository) ChangeStatus(ctx context.Context, user int, m *model.O
 			orders
 		SET
 			status = $1,
-			accrual = $2::DOUBLE PRECISION
+			accrual = $2::FLOAT4
 		WHERE
 			id = $3 AND user_id = $4;
 	`)
@@ -191,7 +191,7 @@ func (o *orderRepository) ChangeStatusAndIncrementUserBalance(ctx context.Contex
 			orders
 		SET
 			status = $1,
-			accrual = $2::DOUBLE PRECISION
+			accrual = $2::FLOAT4
 		WHERE
 			id = $3 AND user_id = $4;
 	`)

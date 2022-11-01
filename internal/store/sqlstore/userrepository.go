@@ -24,7 +24,7 @@ func (r *userRepository) Migrate(ctx context.Context) error {
 		id BIGSERIAL UNIQUE PRIMARY KEY NOT NULL,
 		login VARCHAR UNIQUE NOT NULL,
 		password VARCHAR NOT NULL,
-		balance FLOAT4 DEFAULT 0.0
+		balance DOUBLE PRECISION DEFAULT 0::DOUBLE PRECISION
 	);
 	`)
 	if _, err := r.s.db.Exec(ctx, q); err != nil {
@@ -186,7 +186,7 @@ func (r *userRepository) IncrementBalance(ctx context.Context, id int, add float
 		UPDATE
 			users
 		SET
-			balance = balance + $1::FLOAT4
+			balance = balance + $1::DOUBLE PRECISION
 		WHERE
 			id = $2;
 	`)

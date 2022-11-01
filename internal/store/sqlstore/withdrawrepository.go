@@ -19,7 +19,7 @@ func (r *withdrawRepository) Migrate(ctx context.Context) error {
 			processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			user_id BIGINT,
 			order_id BIGINT,
-			order_sum FLOAT4 NOT NULL,
+			order_sum DOUBLE PRECISION DEFAULT 0::DOUBLE PRECISION,
 			FOREIGN KEY (order_id) REFERENCES orders(id),
 			FOREIGN KEY (user_id) REFERENCES users(id)
 		);`)
@@ -34,7 +34,7 @@ func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Wi
 	var bal float32
 	qGetBal := debugQuery(`
 	SELECT
-		balance
+		balance::FLOAT4
 	FROM
 		users
 	WHERE
@@ -44,7 +44,7 @@ func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Wi
 	UPDATE
 		users
 	SET
-		balance = balance - $1
+		balance = balance - $1::DOUBLE PRECISION
 	WHERE
 		id = $2;
 	`)
@@ -98,7 +98,7 @@ func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Wi
 func (r *withdrawRepository) GetAllByUser(ctx context.Context, user int) (res []*model.Withdraw, err error) {
 	q := debugQuery(`
 	SELECT 
-		order_id, order_sum, processed_at
+		order_id, order_sum::FLOAT4, processed_at
 	FROM 
 		withdrawals
 	WHERE
