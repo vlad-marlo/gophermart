@@ -194,14 +194,16 @@ func (s *server) handleOrdersGet() http.HandlerFunc {
 			return
 		}
 
-		data, err := json.Marshal(&orders)
+		data, err := json.Marshal(orders)
 		if err != nil {
-			s.error(w, fmt.Errorf("json marshal: %v", err), fields, http.StatusInternalServerError)
+			s.error(w, fmt.Errorf("json marshal: %w", err), fields, http.StatusInternalServerError)
 			return
 		}
 
+		w.Header().Add("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write(data); err != nil {
-			s.error(w, fmt.Errorf("write response: %v", err), fields, http.StatusInternalServerError)
+			s.error(w, fmt.Errorf("write response: %w", err), fields, http.StatusInternalServerError)
 			return
 		}
 	}
