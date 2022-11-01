@@ -142,7 +142,7 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model
 				withdrawals
 			WHERE
 				user_id = $1
-		) IS NULL THEN 0.0::DOUBLE PRECISION
+		) IS NULL THEN 0.0::FLOAT8
 		ELSE (
 			SELECT
 				SUM(order_sum)
@@ -150,7 +150,7 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model
 				withdrawals
 			WHERE
 				user_id = $1
-		)::DOUBLE PRECISION
+		)::FLOAT8
 		END
 	FROM
 		users
