@@ -94,7 +94,7 @@ func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Wi
 
 	var ok bool
 	if err := tx.QueryRow(ctx, qOrderRegisteredByUser, user, w.Order).Scan(&ok); err != nil {
-		return pgError("check is order regisered by user or not", err)
+		return pgError("check is order registered by user or not", err)
 	}
 	if !ok {
 		return store.ErrAlreadyRegisteredByAnotherUser
