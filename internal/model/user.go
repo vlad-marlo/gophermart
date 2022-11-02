@@ -31,6 +31,15 @@ func (u *User) BeforeCreate() error {
 	return nil
 }
 
+func (u *User) Valid() bool {
+	if len(u.Login) <= 3 {
+		return false
+	} else if len(u.Password) <= 5 {
+		return false
+	}
+	return true
+}
+
 // EncryptString encryptString ...
 func EncryptString(s string) (string, error) {
 	b, err := bcrypt.GenerateFromPassword([]byte(s), bcrypt.MinCost)

@@ -28,7 +28,7 @@ func (r *userRepository) Migrate(ctx context.Context) error {
 	);
 	`)
 	if _, err := r.s.db.Exec(ctx, q); err != nil {
-		return pgError("exec: %sum", err)
+		return pgError("exec: %w", err)
 	}
 	return nil
 }
@@ -44,7 +44,7 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 	`)
 
 	if err := u.BeforeCreate(); err != nil {
-		return fmt.Errorf("before create: %sum", err)
+		return fmt.Errorf("before create: %w", err)
 	}
 
 	if err := r.s.db.QueryRow(
@@ -56,7 +56,7 @@ func (r *userRepository) Create(ctx context.Context, u *model.User) error {
 		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == pgerrcode.UniqueViolation {
 			return store.ErrLoginAlreadyInUse
 		}
-		return pgError("scan: %sum", err)
+		return pgError("scan: %w", err)
 	}
 
 	return nil
@@ -81,7 +81,7 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, store.ErrIncorrectLoginData
 		}
-		return nil, pgError("query context: %sum", err)
+		return nil, pgError("query context: %w", err)
 	}
 
 	// check error from query context
@@ -91,12 +91,12 @@ func (r *userRepository) GetByLogin(ctx context.Context, login string) (*model.U
 	// getting data
 	if rows.Next() {
 		if err := rows.Scan(&u.ID, &u.EncryptedPassword); err != nil {
-			return nil, pgError("rows scan: %sum", err)
+			return nil, pgError("rows scan: %w", err)
 		}
 		return u, nil
 	}
 	if err := rows.Err(); err != nil {
-		return nil, pgError("rows err: %sum", err)
+		return nil, pgError("rows err: %w", err)
 	}
 	return nil, store.ErrIncorrectLoginData
 }
@@ -123,7 +123,7 @@ func (r *userRepository) ExistsWithID(ctx context.Context, id int) bool {
 		r.s.logger.WithFields(logrus.Fields{
 			"request_id": middleware.GetReqID(ctx),
 			"sql":        debugQuery(q),
-		}).Error(pgError("exists with id: scan: %sum", err))
+		}).Error(pgError("exists with id: scan: %w", err))
 		return false
 	}
 	return res
@@ -161,20 +161,20 @@ func (r *userRepository) GetBalance(ctx context.Context, id int) (balance *model
 
 	rows, err := r.s.db.Query(ctx, q, id)
 	if err != nil {
-		return nil, pgError("exec query: %sum", err)
+		return nil, pgError("exec query: %w", err)
 	}
 
 	defer rows.Close()
 
 	if rows.Next() {
 		if err := rows.Scan(&balance.Current, &balance.Withdrawn); err != nil {
-			return nil, pgError("rows scan: %sum", err)
+			return nil, pgError("rows scan: %w", err)
 		}
 		return balance, nil
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, pgError("rows err: %sum", err)
+		return nil, pgError("rows err: %w", err)
 	}
 
 	return nil, store.ErrNoContent
@@ -192,11 +192,11 @@ func (r *userRepository) IncrementBalance(ctx context.Context, id int, add float
 	`)
 
 	if add <= 0 {
-		return fmt.Errorf("check args: %sum", store.ErrIncorrectData)
+		return fmt.Errorf("check args: %w", store.ErrIncorrectData)
 	}
 
 	if _, err := r.s.db.Exec(ctx, q, add, id); err != nil {
-		return pgError("db exec: %sum", err)
+		return pgError("db exec: %w", err)
 	}
 	return nil
 }

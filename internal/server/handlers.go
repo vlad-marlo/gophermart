@@ -16,7 +16,7 @@ import (
 )
 
 // handleAuthRegister ...
-func (s *server) handleAuthRegister() http.HandlerFunc {
+func (s *Server) handleAuthRegister() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var u *model.User
 		id := middleware.GetReqID(r.Context())
@@ -41,6 +41,10 @@ func (s *server) handleAuthRegister() http.HandlerFunc {
 			s.error(w, fmt.Errorf("json unmarshal: %w", err), fields, http.StatusBadRequest)
 			return
 		}
+		if !u.Valid() {
+			s.error(w, err, fields, http.StatusBadRequest)
+			return
+		}
 
 		if err := s.store.User().Create(r.Context(), u); err != nil {
 			if errors.Is(err, store.ErrLoginAlreadyInUse) {
@@ -57,7 +61,7 @@ func (s *server) handleAuthRegister() http.HandlerFunc {
 }
 
 // handleAuthLogin ...
-func (s *server) handleAuthLogin() http.HandlerFunc {
+func (s *Server) handleAuthLogin() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req *model.User
 		id := middleware.GetReqID(r.Context())
@@ -84,6 +88,11 @@ func (s *server) handleAuthLogin() http.HandlerFunc {
 			return
 		}
 
+		if req.Login == "" || req.Password == "" {
+			s.error(w, errors.New("bad request"), fields, http.StatusBadRequest)
+			return
+		}
+
 		user, err := s.store.User().GetByLogin(r.Context(), req.Login)
 		if err != nil {
 			if errors.Is(err, store.ErrIncorrectLoginData) {
@@ -105,7 +114,7 @@ func (s *server) handleAuthLogin() http.HandlerFunc {
 }
 
 // handleOrdersPost ...
-func (s *server) handleOrdersPost() http.HandlerFunc {
+func (s *Server) handleOrdersPost() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		reqID := middleware.GetReqID(r.Context())
 		fields := map[string]interface{}{
@@ -168,7 +177,7 @@ func (s *server) handleOrdersPost() http.HandlerFunc {
 }
 
 // handleOrdersGet ...
-func (s *server) handleOrdersGet() http.HandlerFunc {
+func (s *Server) handleOrdersGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		reqID := middleware.GetReqID(r.Context())
 		fields := map[string]interface{}{
@@ -210,7 +219,7 @@ func (s *server) handleOrdersGet() http.HandlerFunc {
 }
 
 // handleBalanceGet ...
-func (s *server) handleBalanceGet() http.HandlerFunc {
+func (s *Server) handleBalanceGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -245,7 +254,7 @@ func (s *server) handleBalanceGet() http.HandlerFunc {
 }
 
 // handleBalanceWithdrawPost ...
-func (s *server) handleBalanceWithdrawPost() http.HandlerFunc {
+func (s *Server) handleBalanceWithdrawPost() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		reqID := middleware.GetReqID(ctx)
@@ -303,7 +312,7 @@ func (s *server) handleBalanceWithdrawPost() http.HandlerFunc {
 }
 
 // handleGetAllWithdraws ...
-func (s *server) handleGetAllWithdraws() http.HandlerFunc {
+func (s *Server) handleGetAllWithdraws() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		reqID := middleware.GetReqID(ctx)

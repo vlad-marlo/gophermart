@@ -1,8 +1,6 @@
 package server
 
 import (
-	"net/http"
-
 	"github.com/vlad-marlo/gophermart/internal/poller"
 
 	"github.com/vlad-marlo/gophermart/pkg/logger"
@@ -14,18 +12,18 @@ import (
 	"github.com/vlad-marlo/gophermart/internal/store"
 )
 
-type server struct {
+type Server struct {
 	chi.Router
 	store  store.Storage
 	logger logger.Logger
-	// don't sure that config is necessary in server struct
+	// don't sure that config is necessary in Server struct
 	config *config.Config
 	poller *poller.OrderPoller
 }
 
-// Start ...
-func Start(l logger.Logger, store store.Storage, config *config.Config, p *poller.OrderPoller) error {
-	s := &server{
+// New ...
+func New(l logger.Logger, store store.Storage, config *config.Config, p *poller.OrderPoller) *Server {
+	s := &Server{
 		store:  store,
 		config: config,
 		Router: chi.NewMux(),
@@ -36,11 +34,11 @@ func Start(l logger.Logger, store store.Storage, config *config.Config, p *polle
 	s.configureMiddlewares()
 	s.configureRoutes()
 
-	return http.ListenAndServe(s.config.BindAddr, s.Router)
+	return s
 }
 
 // configureMiddlewares ...
-func (s *server) configureMiddlewares() {
+func (s *Server) configureMiddlewares() {
 	s.Use(middleware.RequestID)
 	s.Use(middlewares.LogRequest(s.logger))
 
@@ -49,7 +47,7 @@ func (s *server) configureMiddlewares() {
 }
 
 // configureRoutes ...
-func (s *server) configureRoutes() {
+func (s *Server) configureRoutes() {
 	s.Route("/api/user", func(r chi.Router) {
 		r.Post("/register", s.handleAuthRegister())
 		r.Post("/login", s.handleAuthLogin())

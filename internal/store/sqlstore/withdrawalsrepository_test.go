@@ -128,12 +128,12 @@ func TestWithdrawalsRepository_GetAllByUser(t *testing.T) {
 	u2 := model.TestUser(t, userLogin2)
 	for _, u := range []*model.User{u1, u2} {
 		err := s.User().Create(ctx, u)
-		require.NoErrorf(t, err, "create user: %sum", err)
+		require.NoErrorf(t, err, "create user: %s", err)
 	}
 
 	orderNum := 12345678903
 	err := s.Order().Register(ctx, u1.ID, orderNum)
-	require.NoErrorf(t, err, "register order: %sum", err)
+	require.NoErrorf(t, err, "register order: %s", err)
 
 	tests := []struct {
 		name     string

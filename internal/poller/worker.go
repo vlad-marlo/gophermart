@@ -9,7 +9,9 @@ import (
 
 // pollWork ...
 func (s *OrderPoller) pollWork(poller int, t *task) {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	l := s.logger.WithFields(map[string]interface{}{
 		"request_id": t.ReqID,
 		"poll":       poller,
@@ -18,10 +20,8 @@ func (s *OrderPoller) pollWork(poller int, t *task) {
 	o, err := s.GetOrderFromAccrual(t.ReqID, t.ID)
 	if err != nil {
 		if errors.Is(err, ErrTooManyRequests) {
-			go func() {
-				time.Sleep(10 * time.Second)
-				s.queue <- t
-			}()
+			time.Sleep(10 * time.Second)
+			s.queue <- t
 		}
 		return
 	}
@@ -56,6 +56,6 @@ func (s *OrderPoller) pollWork(poller int, t *task) {
 		}
 
 	default:
-		l.Warnf("got unknown status: %v", o.Status)
+		l.Warnf("got unknown status: %s", o.Status)
 	}
 }

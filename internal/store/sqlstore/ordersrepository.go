@@ -38,7 +38,7 @@ func (o *orderRepository) Migrate(ctx context.Context) error {
 	`)
 
 	if _, err := o.s.db.Exec(ctx, q); err != nil {
-		return pgError("exec query: %s: %v", err)
+		return pgError("exec query: %w", err)
 	}
 
 	return nil
@@ -56,7 +56,7 @@ func (o *orderRepository) Register(ctx context.Context, user, number int) error 
 		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == pgerrcode.UniqueViolation {
 			return o.getErrByNum(ctx, user, number)
 		}
-		return pgError("exec: %sum", err)
+		return pgError("exec: %w", err)
 	}
 	return nil
 }
@@ -75,7 +75,7 @@ func (o *orderRepository) GetAllByUser(ctx context.Context, user int) (orders []
 
 	rows, err := o.s.db.Query(ctx, q, user)
 	if err != nil {
-		return nil, pgError("query: %sum", err)
+		return nil, pgError("query: %w", err)
 	}
 
 	defer rows.Close()
@@ -85,14 +85,14 @@ func (o *orderRepository) GetAllByUser(ctx context.Context, user int) (orders []
 		o := new(model.Order)
 
 		if err := rows.Scan(&o.Number, &o.Status, &o.Accrual, &t); err != nil {
-			return nil, pgError("scan rows: %sum", err)
+			return nil, pgError("scan rows: %w", err)
 		}
 		o.UploadedAt = t.Format(time.RFC3339)
 		orders = append(orders, o)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, pgError("rows err: %sum", err)
+		return nil, pgError("rows err: %w", err)
 	}
 
 	if len(orders) == 0 {
@@ -122,7 +122,7 @@ func (o *orderRepository) getErrByNum(ctx context.Context, user, number int) err
 
 	var statusByUser, statusByNum bool
 	if err := o.s.db.QueryRow(ctx, q, number, user).Scan(&statusByUser, &statusByNum); err != nil {
-		return pgError("query row: %sum", err)
+		return pgError("query row: %s", err)
 	}
 
 	if statusByUser {
@@ -146,7 +146,7 @@ func (o *orderRepository) ChangeStatus(ctx context.Context, user int, m *model.O
 	`)
 
 	if _, err := o.s.db.Exec(ctx, q, m.Status, m.Accrual, m.Number, user); err != nil {
-		return pgError("exec: %sum", err)
+		return pgError("exec: %w", err)
 	}
 	return nil
 }
@@ -166,7 +166,7 @@ func (o *orderRepository) GetUnprocessedOrders(ctx context.Context) (res []*mode
 
 	rows, err := o.s.db.Query(ctx, q)
 	if err != nil {
-		return nil, pgError("db query: %sum", err)
+		return nil, pgError("db query: %s", err)
 	}
 
 	defer rows.Close()
@@ -174,13 +174,13 @@ func (o *orderRepository) GetUnprocessedOrders(ctx context.Context) (res []*mode
 	for rows.Next() {
 		o := new(model.OrderInPoll)
 		if err := rows.Scan(&o.Number, &o.Status, &o.User); err != nil {
-			return nil, pgError("rows scan: %sum", err)
+			return nil, pgError("rows scan: %s", err)
 		}
 		res = append(res, o)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, pgError("rows err: %sum", err)
+		return nil, pgError("rows err: %s", err)
 	}
 
 	return res, nil
@@ -207,25 +207,25 @@ func (o *orderRepository) ChangeStatusAndIncrementUserBalance(ctx context.Contex
 
 	tx, err := o.s.db.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("start transaction: %sum", err)
+		return fmt.Errorf("start transaction: %w", err)
 	}
 
 	defer func() {
 		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
-			o.s.logger.Errorf("update drivers: unable to rollback: %sum", err)
+			o.s.logger.Errorf("update drivers: unable to rollback: %w", err)
 		}
 	}()
 
 	if _, err := tx.Exec(ctx, qUpdateStatus, m.Status, m.Accrual, m.Number, user); err != nil {
-		return fmt.Errorf("update order: %sum", err)
+		return fmt.Errorf("update order: %w", err)
 	}
 
 	if _, err := tx.Exec(ctx, qIncrementBalance, m.Accrual, user); err != nil {
-		return fmt.Errorf("increment user balance: %sum", err)
+		return fmt.Errorf("increment user balance: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("update drivers: unable to commmit: %sum", err)
+		return fmt.Errorf("update drivers: unable to commmit: %w", err)
 	}
 
 	return nil

@@ -67,8 +67,6 @@ type (
 		Fatalf(format string, args ...interface{})
 		// Panicf ...
 		Panicf(format string, args ...interface{})
-		GetLevel() uint32
-		GetEntry() *logrus.Entry
 	}
 )
 
@@ -164,17 +162,20 @@ func DeleteLogFolderAndFile(t *testing.T) {
 
 // WithFields ...
 func (l *logger) WithFields(args map[string]interface{}) Logger {
-	return &logger{e.WithFields(args)}
+	return &logger{l.Entry.WithFields(args)}
 }
 
 // WithField ...
 func (l *logger) WithField(key string, value interface{}) Logger {
-	return &logger{e.WithField(key, value)}
+	return &logger{l.Entry.WithField(key, value)}
 }
 
 // GetEntry ...
-func (l *logger) GetEntry() *logrus.Entry {
-	return l.Entry
+func GetEntry() *logrus.Entry {
+	return e
+}
+func GetLoggerByEntry(e *logrus.Entry) Logger {
+	return &logger{e}
 }
 
 func (l *logger) GetLevel() uint32 {

@@ -2,11 +2,10 @@ package sqlstore_test
 
 import (
 	"os"
-	"testing"
 )
 
 var (
-	conStr               string
+	conStr               = os.Getenv("TEST_DB_URI")
 	userLogin1           = "first"
 	userLogin2           = "second"
 	userTableName        = "users"
@@ -17,9 +16,3 @@ var (
 	orderNum3            = 3
 	orderNum4            = 4
 )
-
-// TestMain ...
-func TestMain(m *testing.M) {
-	conStr = os.Getenv("TEST_DB_URI")
-	os.Exit(m.Run())
-}

@@ -24,7 +24,7 @@ type (
 
 func New(l logger.Logger, s store.Storage, cfg *config.Config, limit int) *OrderPoller {
 	o := &OrderPoller{
-		queue:  make(chan *task, 2*limit),
+		queue:  make(chan *task, 20*limit),
 		store:  s,
 		logger: l,
 		limit:  limit,
@@ -57,12 +57,18 @@ func (s *OrderPoller) Close() {
 func (s *OrderPoller) startPolling() {
 	for i := 0; i < s.limit; i++ {
 		go func(poll int) {
+
 			for t := range s.queue {
-				s.pollWork(poll, t)
-				if recovered := recover(); recovered != nil {
-					s.logger.WithField("poll", poll).Fatalf("recovered panic in poller: %v", recovered)
-				}
+				func() {
+					defer func() {
+						if recovered := recover(); recovered != nil {
+							s.logger.WithField("poll", poll).Errorf("recovered panic in poller: %v", recovered)
+						}
+					}()
+					s.pollWork(poll, t)
+				}()
 			}
+
 		}(i)
 	}
 }
@@ -73,7 +79,6 @@ func (s *OrderPoller) Register(ctx context.Context, user, num int) error {
 	if err != nil {
 		return err
 	}
-
 	go func() {
 		reqID := middleware.GetReqID(ctx)
 		s.queue <- &task{num, user, reqID}

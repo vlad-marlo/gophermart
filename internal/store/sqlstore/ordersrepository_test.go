@@ -28,7 +28,7 @@ func TestOrderRepository_ChangeStatus(t *testing.T) {
 	u := model.TestUser(t, userLogin1)
 
 	err := s.User().Create(ctx, u)
-	require.NoError(t, err, "can't create user: %sum", err)
+	require.NoError(t, err, "can't create user: %s", err)
 
 	tests := []struct {
 		name string
@@ -71,7 +71,7 @@ func TestOrderRepository_ChangeStatus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := s.Order().Register(ctx, u.ID, tt.m.Number)
-			require.NoError(t, err, "register order: %sum", err)
+			require.NoError(t, err, "register order: %s", err)
 
 			err = s.Order().ChangeStatus(ctx, u.ID, tt.m)
 			assert.NoError(t, err)
@@ -216,7 +216,7 @@ func TestOrderRepository_Register(t *testing.T) {
 			// check order exists in user orders
 			{
 				orders, err := s.Order().GetAllByUser(ctx, tt.user.ID)
-				require.NoError(t, err, "get all orders by user: %sum", err)
+				require.NoError(t, err, "get all orders by user: %v", err)
 				status := false
 				for _, o := range orders {
 					if o.Number == tt.w {
@@ -229,7 +229,7 @@ func TestOrderRepository_Register(t *testing.T) {
 			{
 				orders, err := s.Order().GetAllByUser(ctx, tt.anotherU.ID)
 				if err != nil && !errors.Is(err, store.ErrNoContent) {
-					require.NoErrorf(t, err, "got unexpected error: %sum", err)
+					require.NoErrorf(t, err, "got unexpected error: %v", err)
 				}
 
 				status := false
@@ -260,7 +260,7 @@ func TestOrderRepository_ChangeStatusAndIncrementBalance(t *testing.T) {
 	u := model.TestUser(t, userLogin1)
 
 	err := s.User().Create(ctx, u)
-	require.NoError(t, err, "can't create user: %s", err)
+	require.NoError(t, err, "can't create user: %v", err)
 
 	tests := []struct {
 		name string
@@ -303,10 +303,10 @@ func TestOrderRepository_ChangeStatusAndIncrementBalance(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			before, err := s.User().GetBalance(ctx, u.ID)
-			require.NoError(t, err, "get user balance: %sum", err)
+			require.NoError(t, err, "get user balance: %v", err)
 
 			err = s.Order().Register(ctx, u.ID, tt.m.Number)
-			require.NoError(t, err, "register order: %sum", err)
+			require.NoError(t, err, "register order: %v", err)
 
 			err = s.Order().ChangeStatusAndIncrementUserBalance(ctx, u.ID, tt.m)
 			assert.NoError(t, err)
@@ -324,7 +324,7 @@ func TestOrderRepository_ChangeStatusAndIncrementBalance(t *testing.T) {
 			}
 
 			after, err := s.User().GetBalance(ctx, u.ID)
-			require.NoError(t, err, "get user balance: %sum", err)
+			require.NoError(t, err, "get user balance: %v", err)
 
 			require.True(t, before.Current+tt.m.Accrual == after.Current && before.Withdrawn == after.Withdrawn, "get bad balance")
 			require.True(t, status, "order wasn't registered")
@@ -346,7 +346,7 @@ func TestOrderRepository_GetUnprocessedOrders(t *testing.T) {
 	}()
 
 	err := s.User().Create(ctx, u)
-	require.NoError(t, err, "create user: %sum", err)
+	require.NoError(t, err, "create user: %v", err)
 
 	tt := []struct {
 		name      string
@@ -383,7 +383,7 @@ func TestOrderRepository_GetUnprocessedOrders(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			err = s.Order().Register(ctx, u.ID, tc.num)
-			require.NoError(t, err, "orders: register: %sum", err)
+			require.NoError(t, err, "orders: register: %v", err)
 
 			err = s.Order().ChangeStatus(ctx, u.ID, &model.OrderInAccrual{
 				Number:  tc.num,
@@ -392,7 +392,7 @@ func TestOrderRepository_GetUnprocessedOrders(t *testing.T) {
 			})
 
 			orders, err := s.Order().GetUnprocessedOrders(ctx)
-			require.NoError(t, err, "get unprocessed orders: %sum", err)
+			require.NoError(t, err, "get unprocessed orders: %v", err)
 
 			if len(orders) >= 1 {
 				lastOrder := orders[len(orders)-1]
