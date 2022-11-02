@@ -15,14 +15,11 @@ var (
 	orderNum1            = 1
 	orderNum2            = 2
 	orderNum3            = 3
+	orderNum4            = 4
 )
 
 // TestMain ...
 func TestMain(m *testing.M) {
 	conStr = os.Getenv("TEST_DB_URI")
-	if conStr == "" {
-		conStr = "postgres://postgres:postgres@localhost:5432/gophermart_test?sslmode=disable"
-	}
-
 	os.Exit(m.Run())
 }

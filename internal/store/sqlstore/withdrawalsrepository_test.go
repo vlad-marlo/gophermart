@@ -188,7 +188,7 @@ func TestWithdrawalsRepository_GetAllByUser(t *testing.T) {
 				require.NoError(t, err)
 			} else {
 				require.ErrorIs(t, err, store.ErrAlreadyRegisteredByAnotherUser)
-				t.Skip("bad user")
+				return
 			}
 			// check order exists in user orders
 			{

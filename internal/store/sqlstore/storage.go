@@ -27,7 +27,7 @@ func New(ctx context.Context, l logger.Logger, c *config.Config) (store.Storage,
 	if err != nil {
 		return nil, pgError("parse config: %v", err)
 	}
-	cfg.ConnConfig.Logger = logrusadapter.NewLogger(l.GetEntry())
+	cfg.ConnConfig.Logger = logrusadapter.NewLogger(logger.GetEntry())
 
 	db, err := pgxpool.ConnectConfig(ctx, cfg)
 	if err != nil {

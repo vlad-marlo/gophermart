@@ -26,7 +26,8 @@ func (o *orderRepository) Migrate(ctx context.Context) error {
 			status VARCHAR(50) DEFAULT 'NEW',
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			accrual DOUBLE PRECISION DEFAULT 0::DOUBLE PRECISION,
-			FOREIGN KEY (user_id) REFERENCES users(id)
+			FOREIGN KEY (user_id) REFERENCES users(id),
+			CONSTRAINT correct_status CHECK ( status IN('NEW', 'PROCESSING', 'INVALID', 'PROCESSED') )
 		);
 		CREATE INDEX IF NOT EXISTS
 			index_user_id_orders
@@ -139,7 +140,7 @@ func (o *orderRepository) ChangeStatus(ctx context.Context, user int, m *model.O
 			orders
 		SET
 			status = $1,
-			accrual = $2::FLOAT8
+			accrual = $2::DOUBLE PRECISION
 		WHERE
 			id = $3 AND user_id = $4;
 	`)
@@ -191,18 +192,18 @@ func (o *orderRepository) ChangeStatusAndIncrementUserBalance(ctx context.Contex
 			orders
 		SET
 			status = $1,
-			accrual = $2::FLOAT8
+			accrual = $2::DOUBLE PRECISION
 		WHERE
 			id = $3 AND user_id = $4;
 	`)
-	qIncrementBalance := `
+	qIncrementBalance := debugQuery(`
 		UPDATE
 			users
 		SET
 		    balance = balance + $1::DOUBLE PRECISION
 		WHERE
 		    id = $2;
-	`
+	`)
 
 	tx, err := o.s.db.Begin(ctx)
 	if err != nil {

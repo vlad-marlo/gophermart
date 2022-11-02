@@ -37,7 +37,7 @@ func TestOrderRepository_ChangeStatus(t *testing.T) {
 		{
 			"positive #1",
 			&model.OrderInAccrual{
-				Number:  12345678903,
+				Number:  orderNum1,
 				Status:  model.StatusProcessed,
 				Accrual: 0.2,
 			},
@@ -45,7 +45,7 @@ func TestOrderRepository_ChangeStatus(t *testing.T) {
 		{
 			"positive #2",
 			&model.OrderInAccrual{
-				Number:  123456789123,
+				Number:  orderNum2,
 				Status:  model.StatusNew,
 				Accrual: 2.9,
 			},
@@ -53,7 +53,7 @@ func TestOrderRepository_ChangeStatus(t *testing.T) {
 		{
 			"positive #3",
 			&model.OrderInAccrual{
-				Number:  12345671233,
+				Number:  orderNum3,
 				Status:  model.StatusProcessing,
 				Accrual: 2.9,
 			},
@@ -61,7 +61,7 @@ func TestOrderRepository_ChangeStatus(t *testing.T) {
 		{
 			"positive #4",
 			&model.OrderInAccrual{
-				Number:  123434556789123,
+				Number:  orderNum4,
 				Status:  model.StatusInvalid,
 				Accrual: 2.9,
 			},
@@ -113,8 +113,6 @@ func TestOrderRepository_Register(t *testing.T) {
 		require.NoErrorf(t, err, "create user: %sum", err)
 	}
 
-	orderNum := 12345678903
-
 	tests := []struct {
 		name     string
 		w        int
@@ -124,37 +122,86 @@ func TestOrderRepository_Register(t *testing.T) {
 	}{
 		{
 			"positive case #1",
-			orderNum,
+			orderNum1,
 			u1,
 			u2,
 			nil,
 		},
 		{
 			"positive case #2",
-			12345678904,
+			orderNum2,
 			u1,
 			u2,
 			nil,
 		},
 		{
 			"positive case #3",
-			12345678123,
+			orderNum3,
+			u2,
+			u1,
+			nil,
+		},
+		{
+			"positive case #4",
+			orderNum4,
 			u2,
 			u1,
 			nil,
 		},
 		{
 			"negative case #1 - registered by user",
-			orderNum,
+			orderNum1,
 			u1,
 			u2,
 			store.ErrAlreadyRegisteredByUser,
 		},
 		{
-			"negative case #1 - registered by another user",
-			orderNum,
+			"negative case #2 - registered by user",
+			orderNum2,
+			u1,
+			u2,
+			store.ErrAlreadyRegisteredByUser,
+		},
+		{
+			"negative case #3 - registered by user",
+			orderNum3,
 			u2,
 			u1,
+			store.ErrAlreadyRegisteredByUser,
+		},
+		{
+			"negative case #4 - registered by user",
+			orderNum4,
+			u2,
+			u1,
+			store.ErrAlreadyRegisteredByUser,
+		},
+		{
+			"negative case #5 - registered by another user",
+			orderNum1,
+			u2,
+			u1,
+			store.ErrAlreadyRegisteredByAnotherUser,
+		},
+		{
+			"negative case #6 - registered by another user",
+			orderNum2,
+			u2,
+			u1,
+			store.ErrAlreadyRegisteredByAnotherUser,
+		},
+		{
+			"negative case #7 - registered by another user",
+			orderNum3,
+			u1,
+			u2,
+			store.ErrAlreadyRegisteredByAnotherUser,
+		},
+		{
+			"negative case #8 - registered by another user",
+			orderNum4,
+			u1,
+			u2,
 			store.ErrAlreadyRegisteredByAnotherUser,
 		},
 	}
@@ -206,14 +253,14 @@ func TestOrderRepository_ChangeStatusAndIncrementBalance(t *testing.T) {
 
 	s, teardown := sqlstore.TestStore(t, conStr)
 	defer func() {
-		teardown(ordersTableName, userTableName)
+		teardown(userTableName, ordersTableName)
 		logger.DeleteLogFolderAndFile(t)
 	}()
 
 	u := model.TestUser(t, userLogin1)
 
 	err := s.User().Create(ctx, u)
-	require.NoError(t, err, "can't create user: %sum", err)
+	require.NoError(t, err, "can't create user: %s", err)
 
 	tests := []struct {
 		name string
@@ -222,7 +269,7 @@ func TestOrderRepository_ChangeStatusAndIncrementBalance(t *testing.T) {
 		{
 			"positive #1",
 			&model.OrderInAccrual{
-				Number:  1,
+				Number:  orderNum1,
 				Status:  model.StatusProcessed,
 				Accrual: 0.2,
 			},
@@ -230,7 +277,7 @@ func TestOrderRepository_ChangeStatusAndIncrementBalance(t *testing.T) {
 		{
 			"positive #2",
 			&model.OrderInAccrual{
-				Number:  2,
+				Number:  orderNum2,
 				Status:  model.StatusNew,
 				Accrual: 2.9,
 			},
@@ -238,7 +285,7 @@ func TestOrderRepository_ChangeStatusAndIncrementBalance(t *testing.T) {
 		{
 			"positive #3",
 			&model.OrderInAccrual{
-				Number:  3,
+				Number:  orderNum3,
 				Status:  model.StatusProcessing,
 				Accrual: 212300.2231231,
 			},
@@ -246,7 +293,7 @@ func TestOrderRepository_ChangeStatusAndIncrementBalance(t *testing.T) {
 		{
 			"positive #4",
 			&model.OrderInAccrual{
-				Number:  4,
+				Number:  orderNum4,
 				Status:  model.StatusInvalid,
 				Accrual: 2.912,
 			},
@@ -309,25 +356,25 @@ func TestOrderRepository_GetUnprocessedOrders(t *testing.T) {
 	}{
 		{
 			name:      "positive case #1",
-			num:       1,
+			num:       orderNum1,
 			status:    model.StatusInvalid,
 			wantInGet: false,
 		},
 		{
 			name:      "positive case #2",
-			num:       2,
+			num:       orderNum2,
 			status:    model.StatusProcessing,
 			wantInGet: true,
 		},
 		{
 			name:      "positive case #3",
-			num:       3,
+			num:       orderNum3,
 			status:    model.StatusProcessed,
 			wantInGet: false,
 		},
 		{
 			name:      "positive case #4",
-			num:       4,
+			num:       orderNum4,
 			status:    model.StatusNew,
 			wantInGet: true,
 		},
