@@ -547,3 +547,84 @@ func TestOrdersGet(t *testing.T) {
 	}
 
 }
+
+func TestWithdrawsPost(t *testing.T) {
+	if true {
+		return
+	}
+	if conStr == "" {
+		t.Skip("connect string is not provided")
+	}
+	cfg := config.TestConfig(t)
+	ctx := context.Background()
+
+	storage, teardown := sqlstore.TestStore(t, conStr)
+	defer teardown(userTableName, ordersTableName)
+
+	log := logrus.New()
+	log.Out = io.Discard
+
+	p := poller.TestPoller(t, storage)
+
+	s := server.New(logger.GetLoggerByEntry(logrus.NewEntry(log)), storage, cfg, p)
+	ts := httptest.NewServer(s.Router)
+	defer ts.Close()
+
+	var err error
+
+	u1 := &model.User{Login: userLogin1, Password: userPassword}
+	//t.Logf("user id=%d password=%s enc_pass=%s", u1.ID, u1.Password, u1.EncryptedPassword)
+	require.NoError(t, err, fmt.Sprintf("got unexpected error while creating user: %v", err))
+	u1.Password = userPassword
+	cookiesU1 := getUserCookies(t, ts, u1)
+	u1, err = storage.User().GetByLogin(ctx, u1.Login)
+	require.NoError(t, err, fmt.Sprintf("get user by login: %v", err))
+
+	u2 := &model.User{Login: userLogin2, Password: userPassword}
+	require.NoError(t, err, fmt.Sprintf("got unexpected error while creating user: %v", err))
+	u2.Password = userPassword
+	//cookiesU2 := getUserCookies(t, ts, u2)
+	u2, err = storage.User().GetByLogin(ctx, u2.Login)
+	require.NoError(t, err, fmt.Sprintf("get user by login: %v", err))
+
+	err = storage.Order().Register(ctx, u1.ID, validOrderNum1)
+	require.NoError(t, err, "got unexpected error: %v", err)
+
+	type want struct {
+		status int
+	}
+	type args struct {
+		order   int
+		sum     float64
+		cookies []*http.Cookie
+	}
+
+	tests := []struct {
+		name string
+		args args
+
+		want want
+	}{
+		{
+			name: "positive case #1",
+			args: args{
+				cookies: cookiesU1,
+				order:   validOrderNum1,
+				sum:     123.0,
+			},
+			want: want{
+				status: http.StatusOK,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var body io.Reader
+			resp, _ := testRequest(t, ts, http.MethodPost, userWithdrawPath, body, tt.args.cookies)
+			defer require.NoError(t, resp.Body.Close())
+			require.Equal(t, resp.StatusCode, http.StatusOK)
+		})
+	}
+
+}

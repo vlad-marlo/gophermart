@@ -28,8 +28,12 @@ var (
 	userBalancePath  = "/api/user/balance"
 	userRegisterPath = "/api/user/register"
 	userOrdersPath   = "/api/user/orders"
-	//userWithdrawPath    = "/api/user/balance/withdraw"
+	userWithdrawPath = "/api/user/balance/withdraw"
 	//userWithdrawalsPath = "/api/user/balance/withdrawals"
+
+	validOrderNum1 = 12345678904
+	validOrderNum2 = 4532733309529845
+	validOrderNum3 = 4539088167512356
 
 	l = logger.GetLoggerByEntry(logrus.NewEntry(logrus.New()))
 )
@@ -61,5 +65,6 @@ func getUserCookies(t *testing.T, ts *httptest.Server, u *model.User) []*http.Co
 	require.NoError(t, err, fmt.Sprintf("got unexpected err: %v", err))
 	resp, _ := testRequest(t, ts, http.MethodPost, userRegisterPath, bytes.NewReader(data), nil)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+	defer require.NoError(t, resp.Body.Close())
 	return resp.Cookies()
 }
