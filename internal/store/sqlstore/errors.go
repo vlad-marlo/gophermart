@@ -9,10 +9,10 @@ import (
 // pgError checks err implements postgres error or not. If implements then returns error with postgres format or returns error
 func pgError(format string, err error) error {
 	if pgErr, ok := err.(*pgconn.PgError); ok {
-		return fmt.Errorf(format, fmt.Errorf(
+		err = fmt.Errorf(
 			"SQL error: %s, Detail: %s, Where: %s, State: %s, Code: %s",
 			pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.SQLState(), pgErr.Code,
-		))
+		)
 	}
 	return fmt.Errorf(format, err)
 }

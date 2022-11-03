@@ -4,6 +4,10 @@ build:
 
 .PHONY: test
 test:
-	go test -cover -v ./...
+	go clean -testcache
+	go test -cover -v ./internal/store/sqlstore
+	go test -cover -v ./pkg/...
+	go test -cover -v ./internal/server
+
 
 .DEFAULT_GOAL := build

@@ -85,7 +85,7 @@ func TestWithdrawalRepository_WithdrawNegative(t *testing.T) {
 	require.NoErrorf(t, err, "register balance: %v", err)
 	withdrawSum := 0.0
 
-	for withdraw := 9990.0; withdraw < 10000.0; withdraw += 0.01 {
+	for withdraw := 9999.95; withdraw < 10000.0; withdraw += 0.001 {
 		err = s.User().IncrementBalance(ctx, u.ID, 5000.0)
 		require.NoErrorf(t, err, "increment balance: %v", err)
 

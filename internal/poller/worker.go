@@ -8,7 +8,7 @@ import (
 )
 
 // pollWork ...
-func (s *OrderPoller) pollWork(poller int, t *task) {
+func (s *Poller) pollWork(poller int, t *task) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

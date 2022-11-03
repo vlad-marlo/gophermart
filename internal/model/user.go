@@ -21,12 +21,12 @@ type (
 
 // BeforeCreate ...
 func (u *User) BeforeCreate() error {
-	if len(u.Password) > 0 {
+	if len(u.EncryptedPassword) == 0 {
 		enc, err := EncryptString(u.Password)
 		if err != nil {
 			return fmt.Errorf("encrypt string: %v", err)
 		}
-		u.EncryptedPassword, u.Password = enc, ""
+		u.EncryptedPassword = enc
 	}
 	return nil
 }
@@ -44,7 +44,7 @@ func (u *User) Valid() bool {
 func EncryptString(s string) (string, error) {
 	b, err := bcrypt.GenerateFromPassword([]byte(s), bcrypt.MinCost)
 	if err != nil {
-		return "", fmt.Errorf("gen from pass: %v", err)
+		return "", fmt.Errorf("gen from pass: %w", err)
 	}
 	return string(b), nil
 }

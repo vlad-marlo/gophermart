@@ -47,7 +47,7 @@ func main() {
 	}()
 }
 
-func tearDown(logger logger.Logger, store store.Storage, p *poller.OrderPoller) {
+func tearDown(logger logger.Logger, store store.Storage, p poller.OrderPoller) {
 	// creating interrupt chan for accepting os signals for graceful shut down
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGSEGV)

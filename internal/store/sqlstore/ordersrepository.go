@@ -122,16 +122,13 @@ func (o *orderRepository) getErrByNum(ctx context.Context, user, number int) err
 
 	var statusByUser, statusByNum bool
 	if err := o.s.db.QueryRow(ctx, q, number, user).Scan(&statusByUser, &statusByNum); err != nil {
-		return pgError("query row: %s", err)
+		return pgError("query row: %w", err)
 	}
 
 	if statusByUser {
 		return store.ErrAlreadyRegisteredByUser
-	} else if statusByNum {
-		return store.ErrAlreadyRegisteredByAnotherUser
 	}
-
-	return nil
+	return store.ErrAlreadyRegisteredByAnotherUser
 }
 
 func (o *orderRepository) ChangeStatus(ctx context.Context, user int, m *model.OrderInAccrual) error {

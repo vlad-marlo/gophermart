@@ -20,10 +20,7 @@ func TestOrderRepository_ChangeStatus(t *testing.T) {
 	ctx := context.Background()
 
 	s, teardown := sqlstore.TestStore(t, conStr)
-	defer func() {
-		teardown(userTableName, ordersTableName)
-		logger.DeleteLogFolderAndFile(t)
-	}()
+	defer teardown(userTableName, ordersTableName)
 
 	u := model.TestUser(t, userLogin1)
 
@@ -101,10 +98,7 @@ func TestOrderRepository_Register(t *testing.T) {
 	ctx := context.Background()
 
 	s, teardown := sqlstore.TestStore(t, conStr)
-	defer func() {
-		teardown(userTableName, ordersTableName)
-		logger.DeleteLogFolderAndFile(t)
-	}()
+	defer teardown(userTableName, ordersTableName)
 
 	u1 := model.TestUser(t, userLogin1)
 	u2 := model.TestUser(t, userLogin2)
@@ -210,36 +204,34 @@ func TestOrderRepository_Register(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := s.Order().Register(ctx, tt.user.ID, tt.w)
 			assert.ErrorIs(t, err, tt.wantErr)
-			if tt.wantErr != nil {
-				t.SkipNow()
+
+			if tt.wantErr != nil && tt.wantErr != store.ErrAlreadyRegisteredByUser {
+				return
 			}
 			// check order exists in user orders
-			{
-				orders, err := s.Order().GetAllByUser(ctx, tt.user.ID)
-				require.NoError(t, err, "get all orders by user: %v", err)
-				status := false
-				for _, o := range orders {
-					if o.Number == tt.w {
-						status = true
-					}
+			orders, err := s.Order().GetAllByUser(ctx, tt.user.ID)
+			require.NoError(t, err, "get all orders by user: %v", err)
+			status := false
+			for _, o := range orders {
+				if o.Number == tt.w {
+					status = true
 				}
-				require.True(t, status, "not found order in registered orders by user")
 			}
-			// check order doesn't exist in different user's orders
-			{
-				orders, err := s.Order().GetAllByUser(ctx, tt.anotherU.ID)
-				if err != nil && !errors.Is(err, store.ErrNoContent) {
-					require.NoErrorf(t, err, "got unexpected error: %v", err)
-				}
+			require.True(t, status, "not found order in registered orders by user")
 
-				status := false
-				for _, o := range orders {
-					if o.Number == tt.w {
-						status = true
-					}
-				}
-				assert.False(t, status, "found order in registered orders by another user")
+			// check order doesn't exist in different user's orders
+			orders, err = s.Order().GetAllByUser(ctx, tt.anotherU.ID)
+			if err != nil && !errors.Is(err, store.ErrNoContent) {
+				require.NoErrorf(t, err, "got unexpected error: %v", err)
 			}
+
+			status = false
+			for _, o := range orders {
+				if o.Number == tt.w {
+					status = true
+				}
+			}
+			assert.False(t, status, "found order in registered orders by another user")
 		})
 	}
 }

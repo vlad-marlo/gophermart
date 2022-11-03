@@ -50,8 +50,8 @@ func TestStore(t *testing.T, con string) (store.Storage, func(...string)) {
 
 	return s, func(tables ...string) {
 		if len(tables) > 0 {
-			if _, err = db.Exec(context.TODO(), fmt.Sprintf("TRUNCATE %s CASCADE;", strings.Join(tables, ", "))); err != nil {
-				s.logger.Warn(pgError("defer func: truncate test db: %v", err))
+			if _, err = db.Exec(context.Background(), fmt.Sprintf("TRUNCATE %s CASCADE;", strings.Join(tables, ", "))); err != nil {
+				t.Fatalf("%v", pgError("defer func: truncate test db: %v", err))
 			}
 		}
 		logger.DeleteLogFolderAndFile(t)

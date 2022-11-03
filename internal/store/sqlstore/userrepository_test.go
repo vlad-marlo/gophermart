@@ -51,7 +51,7 @@ func TestUserRepository_Create(t *testing.T) {
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
 			u := model.TestUser(t, tc.login)
-			err := s.User().Create(context.TODO(), u)
+			err := s.User().Create(context.Background(), u)
 
 			if tc.wantErr == nil {
 				assert.NoError(t, err)
@@ -90,8 +90,9 @@ func TestUserRepository_GetByLogin(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
 			u := model.TestUser(t, tc.login)
-			err := s.User().Create(context.TODO(), u)
+			err := s.User().Create(ctx, u)
 
 			if tc.wantErr == nil {
 				assert.NoError(t, err)
@@ -99,7 +100,7 @@ func TestUserRepository_GetByLogin(t *testing.T) {
 				assert.ErrorIs(t, err, tc.wantErr)
 			}
 
-			u1, err := s.User().GetByLogin(context.TODO(), u.Login)
+			u1, err := s.User().GetByLogin(ctx, u.Login)
 			if tc.wantErr == nil {
 				require.NoError(t, err)
 
@@ -107,9 +108,9 @@ func TestUserRepository_GetByLogin(t *testing.T) {
 					t.Fatalf("something went wrong")
 				}
 
-				require.True(t, s.User().ExistsWithID(context.TODO(), u.ID))
+				require.True(t, s.User().ExistsWithID(ctx, u.ID))
 			} else {
-				require.False(t, s.User().ExistsWithID(context.TODO(), u.ID))
+				require.False(t, s.User().ExistsWithID(ctx, u.ID))
 			}
 		})
 
@@ -134,8 +135,8 @@ func TestUserRepository_GetByLogin_UnExisting(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc, func(t *testing.T) {
-			_, err := s.User().GetByLogin(context.TODO(), tc)
-			require.ErrorIs(t, err, store.ErrIncorrectLoginData)
+			_, err := s.User().GetByLogin(context.Background(), tc)
+			require.ErrorIsf(t, err, store.ErrIncorrectLoginData, "got unexpected error: %v", err)
 		})
 	}
 }
@@ -157,7 +158,7 @@ func TestUserRepository_IncrementBalance(t *testing.T) {
 	err := s.User().Create(context.Background(), u)
 	assert.NoErrorf(t, err, "create user %v", err)
 
-	for add := 0.01; add < 5.0; add += 0.01 {
+	for add := 0.1; add <= 0.2; add += 0.0001 {
 
 		bal, err := s.User().GetBalance(ctx, u.ID)
 		assert.NoErrorf(t, err, "get user balance: %v", err)

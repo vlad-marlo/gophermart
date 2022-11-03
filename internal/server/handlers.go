@@ -114,8 +114,61 @@ func (s *Server) handleAuthLogin() http.HandlerFunc {
 }
 
 // handleOrdersPost ...
+func (s *Server) handleOrdersPostOld() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		fields := map[string]interface{}{
+			"request_id": middleware.GetReqID(ctx),
+		}
+		u, err := GetUserIDFromRequest(r)
+		if err != nil {
+			s.error(w, err, fields, http.StatusUnauthorized)
+			return
+		}
+
+		var data []byte
+		defer func() {
+			if err := r.Body.Close(); err != nil {
+				s.logger.WithFields(fields).Error(fmt.Sprintf("close request body: %v", err))
+			}
+		}()
+
+		data, err = io.ReadAll(r.Body)
+		if err != nil {
+			s.error(w, fmt.Errorf("read body: %w", err), fields, http.StatusInternalServerError)
+			return
+		}
+
+		var o int
+		o, err = strconv.Atoi(string(data))
+		if err != nil {
+			s.error(w, fmt.Errorf("conver string data to int: %w", err), fields, http.StatusBadRequest)
+			return
+		}
+
+		if !luhn.Valid(o) {
+			s.error(w, fmt.Errorf("num was not pass luhn test"), fields, http.StatusUnprocessableEntity)
+			return
+		}
+
+		if err := s.poller.Register(ctx, u, o); err != nil {
+			if errors.Is(err, store.ErrAlreadyRegisteredByUser) {
+				s.error(w, fmt.Errorf("already registered: %w", err), fields, http.StatusOK)
+				return
+			} else if errors.Is(err, store.ErrAlreadyRegisteredByAnotherUser) {
+				s.error(w, fmt.Errorf("already registered: %w", err), fields, http.StatusConflict)
+				return
+			}
+			s.error(w, fmt.Errorf("poller register: %w", err), fields, http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusAccepted)
+	}
+}
+
 func (s *Server) handleOrdersPost() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		// logging stuff
 		reqID := middleware.GetReqID(r.Context())
 		fields := map[string]interface{}{
 			"request_id": reqID,
@@ -125,7 +178,7 @@ func (s *Server) handleOrdersPost() http.HandlerFunc {
 
 		defer func() {
 			if err := r.Body.Close(); err != nil {
-				l.Warnf("handle orders post: close body: %v", err)
+				l.Error(fmt.Sprintf("handle orders post: close body: %v", err))
 			}
 		}()
 
@@ -137,7 +190,7 @@ func (s *Server) handleOrdersPost() http.HandlerFunc {
 
 		strNum := string(data)
 		if strNum == "" {
-			s.error(w, fmt.Errorf("bad request data"), fields, http.StatusBadRequest)
+			s.error(w, errors.New("bad request data"), fields, http.StatusBadRequest)
 			return
 		}
 
@@ -154,7 +207,7 @@ func (s *Server) handleOrdersPost() http.HandlerFunc {
 
 		u, err := GetUserIDFromRequest(r)
 		if err != nil {
-			s.error(w, err, fields, http.StatusUnauthorized)
+			s.error(w, fmt.Errorf("get user id from request: %w", err), fields, http.StatusUnauthorized)
 			return
 		}
 
@@ -177,6 +230,48 @@ func (s *Server) handleOrdersPost() http.HandlerFunc {
 }
 
 // handleOrdersGet ...
+func (s *Server) handleOrdersGetOld() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		reqID := middleware.GetReqID(ctx)
+		fields := map[string]interface{}{
+			"request_id": reqID,
+		}
+
+		w.Header().Set("content-type", "application/json")
+
+		u, err := GetUserIDFromRequest(r)
+		if err != nil {
+			s.error(w, err, fields, http.StatusUnauthorized)
+			return
+		}
+
+		var orders []*model.Order
+		orders, err = s.store.Order().GetAllByUser(ctx, u)
+		if err != nil {
+			if errors.Is(err, store.ErrNoContent) {
+				s.error(w, err, fields, http.StatusNoContent)
+				return
+			}
+
+			s.error(w, err, fields, http.StatusInternalServerError)
+			return
+		}
+
+		var data []byte
+		data, err = json.Marshal(orders)
+		if err != nil {
+			s.error(w, err, fields, http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write(data); err != nil {
+			s.error(w, err, fields, http.StatusInternalServerError)
+		}
+	}
+}
+
 func (s *Server) handleOrdersGet() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		reqID := middleware.GetReqID(r.Context())
@@ -184,6 +279,11 @@ func (s *Server) handleOrdersGet() http.HandlerFunc {
 			"request_id": reqID,
 		}
 		fields["handler"] = "get user orders"
+
+		var (
+			orders []*model.Order
+			data   []byte
+		)
 
 		w.Header().Set("Content-Type", "application/json")
 
@@ -193,7 +293,7 @@ func (s *Server) handleOrdersGet() http.HandlerFunc {
 			return
 		}
 
-		orders, err := s.store.Order().GetAllByUser(r.Context(), u)
+		orders, err = s.store.Order().GetAllByUser(r.Context(), u)
 		if err != nil {
 			if errors.Is(err, store.ErrNoContent) {
 				s.error(w, err, fields, http.StatusNoContent)
@@ -203,7 +303,7 @@ func (s *Server) handleOrdersGet() http.HandlerFunc {
 			return
 		}
 
-		data, err := json.Marshal(orders)
+		data, err = json.Marshal(orders)
 		if err != nil {
 			s.error(w, fmt.Errorf("json marshal: %w", err), fields, http.StatusInternalServerError)
 			return
@@ -213,7 +313,6 @@ func (s *Server) handleOrdersGet() http.HandlerFunc {
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write(data); err != nil {
 			s.error(w, fmt.Errorf("write response: %w", err), fields, http.StatusInternalServerError)
-			return
 		}
 	}
 }

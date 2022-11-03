@@ -9,7 +9,7 @@ import (
 )
 
 // GetOrderFromAccrual ...
-func (s *OrderPoller) GetOrderFromAccrual(reqID string, number int) (o *model.OrderInAccrual, err error) {
+func (s *Poller) GetOrderFromAccrual(reqID string, number int) (o *model.OrderInAccrual, err error) {
 	l := s.logger.WithField("request_id", reqID)
 	o = new(model.OrderInAccrual)
 
@@ -18,7 +18,7 @@ func (s *OrderPoller) GetOrderFromAccrual(reqID string, number int) (o *model.Or
 
 	response, err := http.Get(endpoint)
 	if err != nil {
-		return nil, fmt.Errorf("http get: %v", err)
+		return nil, fmt.Errorf("http get: %w ", err)
 	}
 	defer func() {
 		if _, err := io.Copy(io.Discard, response.Body); err != nil {
@@ -43,11 +43,11 @@ func (s *OrderPoller) GetOrderFromAccrual(reqID string, number int) (o *model.Or
 
 	data, err := io.ReadAll(response.Body)
 	if err != nil {
-		return nil, fmt.Errorf("read body: %v", err)
+		return nil, fmt.Errorf("read body: %w", err)
 	}
 
 	if err := json.Unmarshal(data, &o); err != nil {
-		return nil, fmt.Errorf("json unmarshal: %v", err)
+		return nil, fmt.Errorf("json unmarshal: %w", err)
 	}
 
 	return o, nil

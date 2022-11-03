@@ -3,6 +3,8 @@ package config
 import (
 	"flag"
 	"fmt"
+	"strings"
+	"testing"
 
 	"github.com/caarlos0/env/v6"
 )
@@ -25,8 +27,19 @@ func New() (*Config, error) {
 	flag.StringVar(&c.AccuralSystemAddress, "r", c.AccuralSystemAddress, "accural system address")
 	flag.Parse()
 
+	c.AccuralSystemAddress = strings.TrimPrefix(c.AccuralSystemAddress, "http://")
+
 	if len(c.DBURI) == 0 {
 		return nil, ErrEmptyDataBaseURI
 	}
 	return c, nil
+}
+
+func TestConfig(t *testing.T) *Config {
+	c := &Config{}
+
+	if err := env.Parse(c); err != nil {
+		t.Fatalf("env parse: %v", err)
+	}
+	return c
 }
