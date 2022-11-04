@@ -35,28 +35,33 @@ func (s *OrderPoller) GetOrderFromAccrual(number int) (o *model.OrderInAccrual, 
 	o = new(model.OrderInAccrual)
 
 	endpoint := fmt.Sprintf("%s/api/orders/%d", s.config.AccuralSystemAddress, number)
-	l.Tracef("request to %s", endpoint)
 
-	response, err := s.client.R().Get(endpoint)
+	r := s.client.NewRequest()
+	response, err := r.Get(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("http get: %w ", err)
 	}
+
+	tr := r.TraceInfo()
+	l.WithFields(map[string]interface{}{
+		"status_code": response.StatusCode(),
+		"status":      response.Status(),
+		"duration":    tr.TotalTime,
+		"server_time": tr.ServerTime,
+	}).Tracef("request to %s", endpoint)
 
 	switch response.StatusCode() {
 	case http.StatusTooManyRequests:
 		return nil, ErrTooManyRequests
 	case http.StatusInternalServerError:
 		return nil, ErrInternal
-	case http.StatusNotFound:
-		return nil, ErrNotFound
-	case http.StatusNoContent:
-		return nil, ErrNoContent
+	case http.StatusOK:
+		if err := json.Unmarshal(response.Body(), &o); err != nil {
+			return nil, fmt.Errorf("json unmarshal: %w", err)
+		}
+		return o, nil
 	default:
+		l.Error(fmt.Sprintf("got unexpected status code: %v", response.StatusCode()))
+		return nil, ErrUnexpectedStatus
 	}
-
-	if err := json.Unmarshal(response.Body(), &o); err != nil {
-		return nil, fmt.Errorf("json unmarshal: %w", err)
-	}
-
-	return o, nil
 }

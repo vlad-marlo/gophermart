@@ -2,10 +2,8 @@ package poller
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/vlad-marlo/gophermart/internal/model"
-	"time"
 )
 
 // pollWork ...
@@ -19,13 +17,6 @@ func (s *OrderPoller) pollWork(o *model.OrderInPoll) {
 
 	order, err := s.GetOrderFromAccrual(o.Number)
 	if err != nil {
-		if errors.Is(err, ErrTooManyRequests) || errors.Is(err, ErrInternal) {
-			l.Trace(fmt.Sprintf("pushing order back to queue: got bad status: %v", err))
-			time.Sleep(10 * time.Second)
-		}
-		if errors.Is(err, ErrNotFound) || errors.Is(err, ErrNoContent) {
-			l.Trace("order was not found in accrual system: deleting order")
-		}
 		return
 	}
 
