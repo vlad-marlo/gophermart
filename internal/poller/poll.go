@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-resty/resty/v2"
 	"github.com/vlad-marlo/gophermart/internal/config"
 	"github.com/vlad-marlo/gophermart/internal/store"
 	"github.com/vlad-marlo/gophermart/pkg/logger"
+	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -24,32 +27,56 @@ type (
 		store  store.Storage
 		logger logger.Logger
 		config *config.Config
+		client *resty.Client
 		limit  int
 	}
 )
 
+func retryFunc(_ *resty.Client, response *resty.Response) (time.Duration, error) {
+	if response.StatusCode() != http.StatusTooManyRequests {
+		return 0, nil
+	}
+
+	retryAfterValue := response.Header().Get("retry-after")
+	if len(retryAfterValue) == 0 {
+		return 0, nil
+	}
+
+	seconds, err := strconv.Atoi(retryAfterValue)
+	if err != nil {
+		return 0, err
+	}
+	return time.Duration(seconds) * time.Second, nil
+}
+
 func New(l logger.Logger, s store.Storage, cfg *config.Config, limit int) OrderPoller {
+
 	p := &Poller{
 		queue:  make(chan *task, 20*limit),
 		store:  s,
 		logger: l,
 		limit:  limit,
 		config: cfg,
+		client: resty.New().SetRetryAfter(retryFunc).SetRetryCount(2),
 	}
 	p.startPolling()
 	go func() {
 		t := time.NewTicker(2 * time.Minute)
-		for range t.C {
-			orders, err := p.store.Order().GetUnprocessedOrders(context.Background())
-			if err != nil {
-				l.Errorf("get unprocessed orders: %v", err)
-				return
-			}
-			for _, order := range orders {
-				p.queue <- &task{
-					ID:    order.Number,
-					User:  order.User,
-					ReqID: "init poller",
+		defer t.Stop()
+		for p.queue != nil {
+			select {
+			case <-t.C:
+				orders, err := p.store.Order().GetUnprocessedOrders(context.Background())
+				if err != nil {
+					l.Errorf("get unprocessed orders: %v", err)
+					return
+				}
+				for _, order := range orders {
+					p.queue <- &task{
+						ID:    order.Number,
+						User:  order.User,
+						ReqID: "init poller",
+					}
 				}
 			}
 		}

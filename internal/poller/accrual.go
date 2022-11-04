@@ -3,20 +3,20 @@ package poller
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/go-resty/resty/v2"
 	"github.com/vlad-marlo/gophermart/internal/model"
 	"net/http"
 )
 
 // GetOrderFromAccrual ...
 func (s *Poller) GetOrderFromAccrual(reqID string, number int) (o *model.OrderInAccrual, err error) {
+
 	l := s.logger.WithField("request_id", reqID)
 	o = new(model.OrderInAccrual)
 
 	endpoint := fmt.Sprintf("http://%s/api/orders/%d", s.config.AccuralSystemAddress, number)
 	l.Tracef("request to %s", endpoint)
 
-	response, err := resty.New().R().Get(endpoint)
+	response, err := s.client.R().Get(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("http get: %w ", err)
 	}

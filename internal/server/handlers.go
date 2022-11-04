@@ -4,15 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
-	"strconv"
-
-	"github.com/vlad-marlo/gophermart/pkg/luhn"
-
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/vlad-marlo/gophermart/internal/model"
 	"github.com/vlad-marlo/gophermart/internal/store"
+	"github.com/vlad-marlo/gophermart/pkg/luhn"
+	"io"
+	"net/http"
+	"strconv"
 )
 
 // handleAuthRegister ...
@@ -114,7 +112,6 @@ func (s *Server) handleAuthLogin() http.HandlerFunc {
 }
 
 // handleOrdersPost ...
-
 func (s *Server) handleOrdersPost() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// logging stuff
@@ -123,55 +120,46 @@ func (s *Server) handleOrdersPost() http.HandlerFunc {
 			"request_id": reqID,
 		}
 		l := s.logger.WithFields(fields)
-		fields["handler"] = "order register"
-
-		defer func() {
-			if err := r.Body.Close(); err != nil {
-				l.Error(fmt.Sprintf("handle orders post: close body: %v", err))
-			}
-		}()
-
-		data, err := io.ReadAll(r.Body)
-		if err != nil {
-			s.error(w, err, fields, http.StatusBadRequest)
-			return
-		}
-
-		strNum := string(data)
-		if strNum == "" {
-			s.error(w, errors.New("bad request data"), fields, http.StatusBadRequest)
-			return
-		}
-
-		num, err := strconv.Atoi(strNum)
-		if err != nil {
-			s.error(w, err, fields, http.StatusBadRequest)
-			return
-		}
-
-		if ok := luhn.Valid(num); !ok {
-			s.error(w, err, fields, http.StatusUnprocessableEntity)
-			return
-		}
 
 		u, err := GetUserIDFromRequest(r)
 		if err != nil {
-			s.error(w, fmt.Errorf("get user id from request: %w", err), fields, http.StatusUnauthorized)
+			s.error(w, err, fields, http.StatusUnauthorized)
+			return
+		}
+
+		var data []byte
+		defer func() {
+			if err := r.Body.Close(); err != nil {
+				l.Warn(fmt.Sprintf("close body: %v", err))
+			}
+		}()
+		data, err = io.ReadAll(r.Body)
+		if err != nil {
+			s.error(w, err, fields, http.StatusInternalServerError)
+			return
+		}
+
+		var num int
+		num, err = strconv.Atoi(string(data))
+		if err != nil {
+			s.error(w, err, fields, http.StatusBadRequest)
+			return
+		}
+
+		if !luhn.Valid(num) {
+			s.error(w, fmt.Errorf("bad number: was not pass luhn test"), fields, http.StatusUnprocessableEntity)
 			return
 		}
 
 		if err := s.poller.Register(r.Context(), u, num); err != nil {
-			var status int
-
-			if errors.Is(err, store.ErrAlreadyRegisteredByUser) {
-				status = http.StatusOK
-			} else if errors.Is(err, store.ErrAlreadyRegisteredByAnotherUser) {
-				status = http.StatusConflict
-			} else {
-				status = http.StatusInternalServerError
+			switch {
+			case errors.Is(err, store.ErrAlreadyRegisteredByAnotherUser):
+				s.error(w, err, fields, http.StatusConflict)
+			case errors.Is(err, store.ErrAlreadyRegisteredByUser):
+				s.error(w, err, fields, http.StatusOK)
+			default:
+				s.error(w, err, fields, http.StatusInternalServerError)
 			}
-
-			s.error(w, err, fields, status)
 			return
 		}
 		w.WriteHeader(http.StatusAccepted)
@@ -216,10 +204,10 @@ func (s *Server) handleOrdersGet() http.HandlerFunc {
 			return
 		}
 
-		w.Header().Add("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write(data); err != nil {
-			s.error(w, fmt.Errorf("write response: %w", err), fields, http.StatusInternalServerError)
+			err = fmt.Errorf("write response: %w", err)
+			s.error(w, err, fields, http.StatusInternalServerError)
 		}
 	}
 }
@@ -256,68 +244,6 @@ func (s *Server) handleBalanceGet() http.HandlerFunc {
 		if _, err := w.Write(data); err != nil {
 			s.error(w, fmt.Errorf("response writer: write data: %v", err), fields, http.StatusInternalServerError)
 		}
-	}
-}
-
-// handleBalanceWithdrawPost ...
-func (s *Server) handleBalanceWithdrawPost() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		reqID := middleware.GetReqID(ctx)
-		fields := map[string]interface{}{
-			"request_id": reqID,
-		}
-		fields["handler"] = "handle balance withdraw post"
-
-		user, err := GetUserIDFromRequest(r)
-		if err != nil {
-			s.error(w, fmt.Errorf("get user id from req: %v", err), fields, http.StatusUnauthorized)
-			return
-		}
-
-		defer func() {
-			if err := r.Body.Close(); err != nil {
-				s.error(w, fmt.Errorf("resp body close: %v", err), fields, http.StatusInternalServerError)
-			}
-		}()
-
-		data, err := io.ReadAll(r.Body)
-		if err != nil {
-			s.error(w, fmt.Errorf("read body data: %v", err), fields, http.StatusInternalServerError)
-			return
-		}
-
-		var withdraw *model.Withdraw
-		if err := json.Unmarshal(data, &withdraw); err != nil {
-			s.error(w, fmt.Errorf("json unmarshal withdraw: %v", err), fields, http.StatusBadRequest)
-			return
-		}
-
-		if err := s.store.Withdraws().Withdraw(ctx, user, withdraw); err != nil {
-			var status int
-			switch {
-
-			case errors.Is(err, store.ErrPaymentRequired):
-				status = http.StatusPaymentRequired
-
-			case errors.Is(err, store.ErrNoContent):
-				status = http.StatusNoContent
-
-			case errors.Is(err, store.ErrIncorrectData):
-				status = http.StatusUnprocessableEntity
-
-			case errors.Is(err, store.ErrAlreadyRegisteredByAnotherUser):
-				status = http.StatusBadRequest
-
-			default:
-				status = http.StatusInternalServerError
-			}
-
-			err = fmt.Errorf("withdraw: %w", err)
-			s.error(w, err, fields, status)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
 	}
 }
 
@@ -365,98 +291,59 @@ func (s *Server) handleGetAllWithdraws() http.HandlerFunc {
 	}
 }
 
-// handleOrdersPostOld ...
-func (s *Server) handleOrdersPostOld() http.HandlerFunc {
+// handleWithdrawsPost ...
+func (s *Server) handleWithdrawsPost() http.HandlerFunc {
+	type request struct {
+		Order int     `json:"order,string"`
+		Sum   float64 `json:"sum"`
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
+
 		fields := map[string]interface{}{
 			"request_id": middleware.GetReqID(ctx),
 		}
-		u, err := GetUserIDFromRequest(r)
-		if err != nil {
-			s.error(w, err, fields, http.StatusUnauthorized)
-			return
-		}
+		l := s.logger.WithFields(fields)
 
-		var data []byte
+		u, err := GetUserIDFromRequest(r)
+
 		defer func() {
 			if err := r.Body.Close(); err != nil {
-				s.logger.WithFields(fields).Error(fmt.Sprintf("close request body: %v", err))
+				l.Errorf(fmt.Sprintf("request body close: %v", err))
 			}
 		}()
 
-		data, err = io.ReadAll(r.Body)
+		data, err := io.ReadAll(r.Body)
 		if err != nil {
-			s.error(w, fmt.Errorf("read body: %w", err), fields, http.StatusInternalServerError)
+			s.error(w, err, fields, http.StatusInternalServerError)
 			return
 		}
 
-		var o int
-		o, err = strconv.Atoi(string(data))
-		if err != nil {
-			s.error(w, fmt.Errorf("conver string data to int: %w", err), fields, http.StatusBadRequest)
+		var req *request
+		if err := json.Unmarshal(data, &req); err != nil {
+			s.error(w, err, fields, http.StatusBadRequest)
 			return
 		}
 
-		if !luhn.Valid(o) {
-			s.error(w, fmt.Errorf("num was not pass luhn test"), fields, http.StatusUnprocessableEntity)
-			return
+		withdraw := &model.Withdraw{
+			Order: req.Order,
+			Sum:   req.Sum,
 		}
 
-		if err := s.poller.Register(ctx, u, o); err != nil {
-			if errors.Is(err, store.ErrAlreadyRegisteredByUser) {
-				s.error(w, fmt.Errorf("already registered: %w", err), fields, http.StatusOK)
-				return
-			} else if errors.Is(err, store.ErrAlreadyRegisteredByAnotherUser) {
-				s.error(w, fmt.Errorf("already registered: %w", err), fields, http.StatusConflict)
-				return
+		if err := s.store.Withdraws().Withdraw(ctx, u, withdraw); err != nil {
+			err = fmt.Errorf("withdraw: %w", err)
+			switch {
+			case errors.Is(err, store.ErrIncorrectData):
+				s.error(w, err, fields, http.StatusUnprocessableEntity)
+			case errors.Is(err, store.ErrPaymentRequired):
+				s.error(w, err, fields, http.StatusPaymentRequired)
+			default:
+				s.error(w, err, fields, http.StatusInternalServerError)
 			}
-			s.error(w, fmt.Errorf("poller register: %w", err), fields, http.StatusInternalServerError)
 			return
-		}
-		w.WriteHeader(http.StatusAccepted)
-	}
-}
-
-// handleOrdersGetOld ...
-func (s *Server) handleOrdersGetOld() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		reqID := middleware.GetReqID(ctx)
-		fields := map[string]interface{}{
-			"request_id": reqID,
 		}
 
 		w.Header().Set("content-type", "application/json")
-
-		u, err := GetUserIDFromRequest(r)
-		if err != nil {
-			s.error(w, err, fields, http.StatusUnauthorized)
-			return
-		}
-
-		var orders []*model.Order
-		orders, err = s.store.Order().GetAllByUser(ctx, u)
-		if err != nil {
-			if errors.Is(err, store.ErrNoContent) {
-				s.error(w, err, fields, http.StatusNoContent)
-				return
-			}
-
-			s.error(w, err, fields, http.StatusInternalServerError)
-			return
-		}
-
-		var data []byte
-		data, err = json.Marshal(orders)
-		if err != nil {
-			s.error(w, err, fields, http.StatusInternalServerError)
-			return
-		}
-
 		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write(data); err != nil {
-			s.error(w, err, fields, http.StatusInternalServerError)
-		}
 	}
 }

@@ -544,9 +544,6 @@ func TestOrdersGet(t *testing.T) {
 }
 
 func TestWithdrawsPost(t *testing.T) {
-	if true {
-		return
-	}
 	if conStr == "" {
 		t.Skip("connect string is not provided")
 	}
@@ -575,24 +572,12 @@ func TestWithdrawsPost(t *testing.T) {
 	u1, err = storage.User().GetByLogin(ctx, u1.Login)
 	require.NoError(t, err, fmt.Sprintf("get user by login: %v", err))
 
-	u2 := &model.User{Login: userLogin2, Password: userPassword}
-	require.NoError(t, err, fmt.Sprintf("got unexpected error while creating user: %v", err))
-	u2.Password = userPassword
-	cookiesU2 := getUserCookies(t, ts, u2)
-	u2, err = storage.User().GetByLogin(ctx, u2.Login)
-	require.NoError(t, err, fmt.Sprintf("get user by login: %v", err))
-
-	err = storage.Order().Register(ctx, u1.ID, validOrderNum1)
-	require.NoError(t, err, "got unexpected error: %v", err)
-
 	type want struct {
-		status          int
-		otherUserStatus int
+		status int
 	}
 	type args struct {
-		order int
-		sum   float64
-		u     *model.User
+		Order int     `json:"order,string"`
+		Sum   float64 `json:"sum"`
 	}
 
 	tests := []struct {
@@ -604,74 +589,76 @@ func TestWithdrawsPost(t *testing.T) {
 		{
 			name: "positive case #1",
 			args: args{
-				u:     u1,
-				order: validOrderNum1,
-				sum:   123.0,
+				Order: validOrderNum1,
+				Sum:   123.0,
 			},
 			want: want{
-				status:          http.StatusOK,
-				otherUserStatus: http.StatusConflict,
+				status: http.StatusOK,
 			},
 		},
 		{
 			name: "positive case #2",
 			args: args{
-				u:     u2,
-				order: validOrderNum2,
-				sum:   123.0,
+				Order: validOrderNum2,
+				Sum:   123.0,
 			},
 			want: want{
-				status:          http.StatusOK,
-				otherUserStatus: http.StatusConflict,
+				status: http.StatusOK,
 			},
 		},
 		{
 			name: "positive case #3",
 			args: args{
-				u:     u2,
-				order: validOrderNum3,
-				sum:   123.0,
+				Order: validOrderNum3,
+				Sum:   123.0,
 			},
 			want: want{
-				status:          http.StatusOK,
-				otherUserStatus: http.StatusConflict,
+				status: http.StatusOK,
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var cookies, otherCookies []*http.Cookie
-			if tt.args.u == u1 {
-				cookies = cookiesU1
-				otherCookies = cookiesU2
-			} else {
-				cookies = cookiesU2
-				otherCookies = cookiesU2
-			}
 
 			var body []byte
-			w := &model.Withdraw{Order: tt.args.order, Sum: tt.args.sum}
-			body, err = json.Marshal(w)
+			body, err = json.Marshal(tt.args)
 
-			resp, _ := testRequest(t, ts, http.MethodPost, userWithdrawPath, body, cookies)
-			require.Equal(t, tt.want.status, resp.StatusCode)
+			resp, _ := testRequest(t, ts, http.MethodPost, userWithdrawPath, body, cookiesU1)
+			require.Equal(t, http.StatusPaymentRequired, resp.StatusCode())
 
 			if tt.want.status == http.StatusOK {
-				orders, err := storage.Withdraws().GetAllByUser(ctx, tt.args.u.ID)
-				require.NoError(t, err, fmt.Sprintf("got unexpected error while getting all withdrawals by user: %v", err))
+				orders, err := storage.Withdraws().GetAllByUser(ctx, u1.ID)
+				if !errors.Is(err, store.ErrNoContent) {
+					require.NoError(t, err, fmt.Sprintf("got unexpected error while getting all withdrawals by user: %v", err))
+				}
 
 				status := false
 				for _, o := range orders {
-					if o.Order == tt.args.order && o.Sum == tt.args.sum {
-						status = false
+					if o.Order == tt.args.Order && o.Sum == tt.args.Sum {
+						status = true
+					}
+				}
+				require.False(t, status, "got bad status")
+
+				err = storage.User().IncrementBalance(ctx, u1.ID, tt.args.Sum)
+				require.NoError(t, err, "increment balance")
+
+				resp, _ := testRequest(t, ts, http.MethodPost, userWithdrawPath, body, cookiesU1)
+				require.Equal(t, http.StatusOK, resp.StatusCode())
+
+				orders, err = storage.Withdraws().GetAllByUser(ctx, u1.ID)
+				require.NoError(t, err, fmt.Sprintf("got unexpected error while getting all withdrawals by user: %v", err))
+
+				status = false
+				for _, o := range orders {
+					if o.Order == tt.args.Order && o.Sum == tt.args.Sum {
+						status = true
 					}
 				}
 				require.True(t, status, "got bad status")
 			}
 
-			resp, _ = testRequest(t, ts, http.MethodPost, userWithdrawPath, body, otherCookies)
-			require.Equal(t, tt.want.otherUserStatus, resp.StatusCode)
 		})
 	}
 }

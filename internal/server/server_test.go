@@ -30,7 +30,7 @@ var (
 	userWithdrawPath    = "/api/user/balance/withdraw"
 	userWithdrawalsPath = "/api/user/balance/withdrawals"
 
-	validOrderNum1 = 12345678904
+	validOrderNum1 = 12345678903
 	validOrderNum2 = 4532733309529845
 	validOrderNum3 = 4539088167512356
 
