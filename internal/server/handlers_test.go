@@ -613,6 +613,30 @@ func TestWithdrawsPost(t *testing.T) {
 				otherUserStatus: http.StatusConflict,
 			},
 		},
+		{
+			name: "positive case #2",
+			args: args{
+				u:     u2,
+				order: validOrderNum2,
+				sum:   123.0,
+			},
+			want: want{
+				status:          http.StatusOK,
+				otherUserStatus: http.StatusConflict,
+			},
+		},
+		{
+			name: "positive case #3",
+			args: args{
+				u:     u2,
+				order: validOrderNum3,
+				sum:   123.0,
+			},
+			want: want{
+				status:          http.StatusOK,
+				otherUserStatus: http.StatusConflict,
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -644,8 +668,6 @@ func TestWithdrawsPost(t *testing.T) {
 					}
 				}
 				require.True(t, status, "got bad status")
-			} else if tt.want.status == http.StatusConflict {
-
 			}
 
 			resp, _ = testRequest(t, ts, http.MethodPost, userWithdrawPath, body, otherCookies)

@@ -39,7 +39,7 @@ func New(l logger.Logger, s store.Storage, cfg *config.Config, limit int) OrderP
 	p.startPolling()
 	go func() {
 		t := time.NewTicker(2 * time.Minute)
-		for _ = range t.C {
+		for range t.C {
 			orders, err := p.store.Order().GetUnprocessedOrders(context.Background())
 			if err != nil {
 				l.Errorf("get unprocessed orders: %v", err)
