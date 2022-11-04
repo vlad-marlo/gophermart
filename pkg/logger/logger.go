@@ -6,7 +6,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"io"
 	"os"
+	"path"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -65,8 +67,6 @@ type (
 		Fatalf(format string, args ...interface{})
 		// Panicf ...
 		Panicf(format string, args ...interface{})
-		GetLevel() uint32
-		GetEntry() *logrus.Entry
 	}
 )
 
@@ -80,21 +80,22 @@ func init() {
 	l.SetReportCaller(true)
 
 	textFormatter = &logrus.TextFormatter{
-		FullTimestamp: true,
-		ForceColors:   true,
-		CallerPrettyfier: func(f *runtime.Frame) (fun string, file string) {
-			return f.Function, fmt.Sprintf("%s:%d", f.Func.Name(), f.Line)
-		},
-		TimestampFormat: time.RFC3339,
+		DisableColors:          true,
+		DisableTimestamp:       false,
+		FullTimestamp:          true,
+		TimestampFormat:        time.RFC3339,
+		DisableSorting:         false,
+		DisableLevelTruncation: true,
+		PadLevelText:           false,
+		CallerPrettyfier:       callerPrettier,
 	}
 
 	jsonFormatter = &logrus.JSONFormatter{
-		DisableTimestamp: false,
-		TimestampFormat:  time.RFC3339,
-		CallerPrettyfier: func(f *runtime.Frame) (function string, file string) {
-			return f.Function, fmt.Sprintf("%s:%d", f.Func.Name(), f.Line)
-		},
-		PrettyPrint: false,
+		TimestampFormat:   time.RFC3339,
+		DisableTimestamp:  false,
+		DisableHTMLEscape: false,
+		CallerPrettyfier:  callerPrettier,
+		PrettyPrint:       false,
 	}
 
 	if format := os.Getenv("LOG_FORMATTER"); format == "text" {
@@ -107,7 +108,7 @@ func init() {
 		l.Panicf("mkdir: %v", err)
 	}
 
-	allFile, err := os.OpenFile(fmt.Sprintf("logs/%s.log", time.Now().Format("2006-1")), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0777)
+	allFile, err := os.OpenFile(fmt.Sprintf("logs/%s.log", time.Now().Format("2006-Jan-02-15")), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0777)
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		l.Panicf("open file: %v", err)
 	}
@@ -134,7 +135,7 @@ func init() {
 func (h *writerHook) Fire(e *logrus.Entry) error {
 	line, err := e.String()
 	if err != nil {
-		return fmt.Errorf("entry: String(); %v", err)
+		return fmt.Errorf("entry: String(); %w", err)
 	}
 	for _, w := range h.Writer {
 		_, _ = w.Write([]byte(line))
@@ -161,19 +162,42 @@ func DeleteLogFolderAndFile(t *testing.T) {
 
 // WithFields ...
 func (l *logger) WithFields(args map[string]interface{}) Logger {
-	return &logger{e.WithFields(args)}
+	return &logger{l.Entry.WithFields(args)}
 }
 
 // WithField ...
 func (l *logger) WithField(key string, value interface{}) Logger {
-	return &logger{e.WithField(key, value)}
+	return &logger{l.Entry.WithField(key, value)}
 }
 
 // GetEntry ...
-func (l *logger) GetEntry() *logrus.Entry {
-	return l.Entry
+func GetEntry() *logrus.Entry {
+	return e
+}
+func GetLoggerByEntry(e *logrus.Entry) Logger {
+	return &logger{e}
 }
 
 func (l *logger) GetLevel() uint32 {
 	return uint32(l.Entry.Level)
+}
+
+func callerPrettier(f *runtime.Frame) (function string, file string) {
+
+	function = f.Function
+	stripped := strings.Split(function, "/")
+
+	if len(stripped) >= 1 {
+		function = stripped[len(stripped)-1]
+	} else {
+		function = ""
+	}
+
+	stripped = strings.Split(f.Function, "/")
+	file = ""
+	if len(stripped) < 1 {
+		pkg := strings.Split(stripped[len(stripped)-1], ".")[0]
+		file = fmt.Sprintf("%s/%s:%d", pkg, path.Base(f.File), f.Line)
+	}
+	return
 }

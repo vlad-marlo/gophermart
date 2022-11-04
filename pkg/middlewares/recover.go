@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5/middleware"
@@ -15,7 +16,7 @@ func Recover(logger logger.Logger) func(next http.Handler) http.Handler {
 				if rvr := recover(); rvr != nil && rvr != http.ErrAbortHandler {
 
 					id := middleware.GetReqID(r.Context())
-					logger.WithField("request_id", id).Errorf("recover covered: %v", rvr)
+					logger.WithField("request_id", id).Error(fmt.Sprintf("recover covered: %v", rvr))
 
 					w.WriteHeader(http.StatusInternalServerError)
 				}

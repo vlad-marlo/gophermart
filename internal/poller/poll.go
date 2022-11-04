@@ -2,83 +2,56 @@ package poller
 
 import (
 	"context"
-	"github.com/go-chi/chi/v5/middleware"
+	"errors"
+	"fmt"
+	"github.com/go-resty/resty/v2"
 	"github.com/vlad-marlo/gophermart/internal/config"
-	"github.com/vlad-marlo/gophermart/internal/model"
 	"github.com/vlad-marlo/gophermart/internal/store"
 	"github.com/vlad-marlo/gophermart/pkg/logger"
+	"time"
 )
 
 type (
-	task struct {
-		ID, User      int
-		Status, ReqID string
-	}
 	OrderPoller struct {
-		queue  chan *task
+		queue  chan struct{}
 		store  store.Storage
 		logger logger.Logger
 		config *config.Config
-		limit  int
+		client *resty.Client
 	}
 )
 
-func New(l logger.Logger, s store.Storage, cfg *config.Config, limit int) *OrderPoller {
-	o := &OrderPoller{
-		queue:  make(chan *task, 2*limit),
+func New(l logger.Logger, s store.Storage, cfg *config.Config, limit time.Duration) *OrderPoller {
+	p := &OrderPoller{
+		queue:  make(chan struct{}),
 		store:  s,
 		logger: l,
-		limit:  limit,
 		config: cfg,
+		client: resty.New().SetRetryAfter(retryFunc).SetRetryCount(2),
 	}
-	o.startPolling()
 	go func() {
-		orders, err := o.store.Order().GetUnprocessedOrders(context.Background())
-		if err != nil {
-			l.Errorf("get unprocessed orders: %v", err)
-			return
-		}
-		for _, order := range orders {
-			o.queue <- &task{
-				ID:     order.Number,
-				User:   order.User,
-				Status: order.Status,
-				ReqID:  "init poller",
+		t := time.NewTicker(limit)
+		for {
+			select {
+			case <-t.C:
+				orders, err := p.store.Order().GetUnprocessedOrders(context.Background())
+				if err != nil && !errors.Is(err, store.ErrNoContent) {
+					l.Error(fmt.Sprintf("get unprocessed orders: %v", err))
+					continue
+				}
+				for _, order := range orders {
+					p.pollWork(order)
+				}
+			case <-p.queue:
+				l.Trace("graceful closed poller")
+				return
 			}
 		}
 	}()
-	return o
+	return p
 }
 
 // Close ...
 func (s *OrderPoller) Close() {
 	close(s.queue)
-}
-
-// startPolling ...
-func (s *OrderPoller) startPolling() {
-	for i := 0; i < s.limit; i++ {
-		go func(poll int) {
-			for t := range s.queue {
-				s.pollWork(poll, t)
-				if recovered := recover(); recovered != nil {
-					s.logger.WithField("poll", poll).Fatalf("recovered panic in poller: %v", recovered)
-				}
-			}
-		}(i)
-	}
-}
-
-// Register ...
-func (s *OrderPoller) Register(ctx context.Context, user, num int) error {
-	err := s.store.Order().Register(ctx, user, num)
-	if err != nil {
-		return err
-	}
-
-	go func() {
-		reqID := middleware.GetReqID(ctx)
-		s.queue <- &task{num, user, model.StatusNew, reqID}
-	}()
-	return nil
 }

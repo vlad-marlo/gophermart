@@ -1,6 +1,8 @@
 package middlewares
 
 import (
+	"github.com/sirupsen/logrus"
+	"io"
 	"net/http"
 	"testing"
 
@@ -13,7 +15,9 @@ func TestServer(t *testing.T) chi.Router {
 	t.Helper()
 
 	r := chi.NewMux()
-	l := logger.GetLogger()
+	log := logrus.New()
+	log.Out = io.Discard
+	l := logger.GetLoggerByEntry(logrus.NewEntry(log))
 	r.Use(Recover(l))
 	r.Get("/", func(_ http.ResponseWriter, _ *http.Request) {
 		panic("something went wrong")

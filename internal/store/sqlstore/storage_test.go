@@ -2,18 +2,17 @@ package sqlstore_test
 
 import (
 	"os"
-	"testing"
 )
 
 var (
-	conStr string
+	conStr               = os.Getenv("TEST_DB_URI")
+	userLogin1           = "first"
+	userLogin2           = "second"
+	userTableName        = "users"
+	ordersTableName      = "orders"
+	withdrawalsTableName = "withdrawals"
+	orderNum1            = 79927398713
+	orderNum2            = 4929972884676289
+	orderNum3            = 4532733309529845
+	orderNum4            = 4539088167512356
 )
-
-// TestMain ...
-func TestMain(m *testing.M) {
-	conStr = os.Getenv("TEST_DB_URI")
-	if conStr == "" {
-		conStr = "postgres://postgres:postgres@localhost:5432/gophermart_test?sslmode=disable"
-	}
-	os.Exit(m.Run())
-}

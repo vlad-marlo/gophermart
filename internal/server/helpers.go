@@ -10,14 +10,16 @@ import (
 )
 
 // error ...
-func (s *server) error(w http.ResponseWriter, err error, fields map[string]interface{}, status int) {
+func (s *Server) error(w http.ResponseWriter, err error, fields map[string]interface{}, status int) {
 	w.WriteHeader(status)
 	var lvl logrus.Level
 	switch {
-	case status > 500:
+	case status >= 500:
 		lvl = logrus.ErrorLevel
-	case status > 400:
+	case status >= 400:
 		lvl = logrus.DebugLevel
+	default:
+		lvl = logrus.TraceLevel
 	}
 	s.logger.WithFields(fields).Log(lvl, err)
 }

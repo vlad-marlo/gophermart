@@ -3,6 +3,7 @@ package config
 import (
 	"flag"
 	"fmt"
+	"testing"
 
 	"github.com/caarlos0/env/v6"
 )
@@ -10,7 +11,7 @@ import (
 type Config struct {
 	BindAddr             string `env:"RUN_ADDRESS" envDefault:":8000"`
 	DBURI                string `env:"DATABASE_URI"`
-	AccuralSystemAddress string `env:"ACCURAL_SYSTEM_ADDRESS" envDefault:":8080"`
+	AccuralSystemAddress string `env:"ACCURAL_SYSTEM_ADDRESS" envDefault:"http://:8080"`
 }
 
 func New() (*Config, error) {
@@ -29,4 +30,13 @@ func New() (*Config, error) {
 		return nil, ErrEmptyDataBaseURI
 	}
 	return c, nil
+}
+
+func TestConfig(t *testing.T) *Config {
+	c := &Config{}
+
+	if err := env.Parse(c); err != nil {
+		t.Fatalf("env parse: %v", err)
+	}
+	return c
 }

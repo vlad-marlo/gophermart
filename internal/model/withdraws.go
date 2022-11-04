@@ -4,7 +4,7 @@ import "time"
 
 type Withdraw struct {
 	Order             int       `json:"order,string"`
-	Sum               float32   `json:"sum"`
+	Sum               float64   `json:"sum"`
 	ProcessedAt       time.Time `json:"-"`
 	ProcessedAtString string    `json:"processed_at,omitempty"`
 }

@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"os"
 
 	"github.com/vlad-marlo/gophermart/pkg/logger"
 )
@@ -17,12 +18,32 @@ type encryptor struct {
 
 var e encryptor
 
+const (
+	EnvKey      = "ENCRYPTOR_KEY"
+	EnvNonceKey = "ENCRYPTOR_NONCE"
+)
+
 func init() {
-	key, err := generateRandom(aes.BlockSize)
+	var err error
 	l := logger.GetLogger()
+
+	key, err := hex.DecodeString(os.Getenv(EnvKey))
 	if err != nil {
-		l.Panicf("generate key: %v", err)
-		return
+		l.Errorf("hex decode string: %v", err)
+	}
+
+	if len(key) != aes.BlockSize {
+		key, err = generateRandom(aes.BlockSize)
+		if err != nil {
+			l.Panicf("generate key: %v", err)
+			return
+		}
+
+		_ = os.Unsetenv(EnvKey)
+
+		if err := os.Setenv(EnvKey, hex.EncodeToString(key)); err != nil {
+			l.Errorf("set env: %v", err)
+		}
 	}
 
 	aesBlock, err := aes.NewCipher(key)
@@ -37,10 +58,25 @@ func init() {
 		return
 	}
 
-	nonce, err := generateRandom(aesGCM.NonceSize())
-	if err != nil {
-		l.Panicf("initialize GCM nonce: %v", err)
-		return
+	nonce, err := hex.DecodeString(os.Getenv(EnvNonceKey))
+	if err != nil || len(nonce) != aesGCM.NonceSize() {
+		if err != nil {
+			l.Errorf("hex: decode string: nonce key: %v", err)
+		}
+
+		nonce, err = generateRandom(aesGCM.NonceSize())
+		if err != nil {
+			l.Panicf("initialize GCM nonce: %v", err)
+			return
+		}
+
+		if err = os.Unsetenv(EnvNonceKey); err != nil {
+			l.Errorf("os: unset env: %v", err)
+		}
+
+		if err := os.Setenv(EnvNonceKey, hex.EncodeToString(nonce)); err != nil {
+			l.Errorf("set env nonce: %v", err)
+		}
 	}
 
 	e = encryptor{

@@ -2,11 +2,12 @@ package main
 
 import (
 	"context"
+	"github.com/vlad-marlo/gophermart/pkg/logger"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-
-	"github.com/vlad-marlo/gophermart/pkg/logger"
+	"time"
 
 	"github.com/vlad-marlo/gophermart/internal/config"
 	"github.com/vlad-marlo/gophermart/internal/poller"
@@ -14,9 +15,11 @@ import (
 	"github.com/vlad-marlo/gophermart/internal/store/sqlstore"
 )
 
-const pollerQueueLimit = 20
+const pollInterval = 10 * time.Second
 
 func main() {
+	ctx := context.Background()
+
 	// init logger
 	log := logger.GetLogger()
 
@@ -26,41 +29,26 @@ func main() {
 		log.Panicf("new config: %v", err)
 	}
 
-	ctx := context.Background()
 	// init storage
 	storage, err := sqlstore.New(ctx, log, cfg)
 	if err != nil {
 		log.Panicf("new sql store: %v", err)
 	}
-	p := poller.New(log, storage, cfg, pollerQueueLimit)
+	defer storage.Close()
+
+	p := poller.New(log, storage, cfg, pollInterval)
+	defer p.Close()
+	s := server.New(log, storage, cfg)
+
 	go func() {
-		log.Infof("starting server on %v", cfg.BindAddr)
-		if err := server.Start(log, storage, cfg, p); err != nil {
+		if err := http.ListenAndServe(cfg.BindAddr, s.Router); err != nil {
 			log.Panicf("start server: %v", err)
 		}
 	}()
-
-	// creating interrupt chan for accepting os signals
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGSEGV)
 
-	// gracefully shut down
-	var stringSignal string
 	sig := <-interrupt
-	switch sig {
-	case os.Interrupt:
-		stringSignal = "interrupt"
-	case syscall.SIGTERM:
-		stringSignal = "terminate"
-	case syscall.SIGINT:
-		stringSignal = "int"
-	case syscall.SIGSEGV:
-		stringSignal = "segmentation violation"
-	default:
-		stringSignal = "unknown"
-	}
 
-	p.Close()
-	storage.Close()
-	log.WithField("signal", stringSignal).Info("graceful shut down")
+	log.WithField("signal", sig.String()).Info("graceful shut down")
 }

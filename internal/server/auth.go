@@ -14,7 +14,7 @@ const (
 )
 
 // CheckAuthMiddleware ...
-func (s *server) CheckAuthMiddleware(next http.Handler) http.Handler {
+func (s *Server) CheckAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// check request reqID from request
 		reqID := middleware.GetReqID(r.Context())
@@ -39,7 +39,7 @@ func (s *server) CheckAuthMiddleware(next http.Handler) http.Handler {
 }
 
 // authenticate ...
-func (s *server) authenticate(w http.ResponseWriter, id int) {
+func (s *Server) authenticate(w http.ResponseWriter, id int) {
 	encoded := encryptor.Encode(fmt.Sprint(id))
 	c := &http.Cookie{
 		Name:  UserIDCookieName,
