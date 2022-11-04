@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vlad-marlo/gophermart/internal/config"
 	"github.com/vlad-marlo/gophermart/internal/model"
-	"github.com/vlad-marlo/gophermart/internal/poller"
 	"github.com/vlad-marlo/gophermart/internal/server"
 	"github.com/vlad-marlo/gophermart/internal/store"
 	"github.com/vlad-marlo/gophermart/internal/store/sqlstore"
@@ -45,7 +44,7 @@ func TestAuthUserRegister_MainCases(t *testing.T) {
 
 	cfg := config.TestConfig(t)
 
-	s := server.New(l, storage, cfg, nil)
+	s := server.New(l, storage, cfg)
 
 	ts := httptest.NewServer(s.Router)
 	defer ts.Close()
@@ -166,7 +165,7 @@ func TestAuthUserRegister_CheckAuth(t *testing.T) {
 	defer teardown(userTableName)
 
 	cfg := config.TestConfig(t)
-	s := server.New(l, storage, cfg, nil)
+	s := server.New(l, storage, cfg)
 	ts := httptest.NewServer(s.Router)
 	defer ts.Close()
 
@@ -275,7 +274,7 @@ func TestAuthUserLogin(t *testing.T) {
 	require.NoErrorf(t, err, "create user: %v", err)
 
 	cfg := config.TestConfig(t)
-	s := server.New(l, storage, cfg, nil)
+	s := server.New(l, storage, cfg)
 	ts := httptest.NewServer(s.Router)
 	defer ts.Close()
 
@@ -311,9 +310,7 @@ func TestOrdersPost(t *testing.T) {
 	log := logrus.New()
 	log.Out = io.Discard
 
-	p := poller.TestPoller(t, storage)
-
-	s := server.New(logger.GetLoggerByEntry(logrus.NewEntry(log)), storage, cfg, p)
+	s := server.New(logger.GetLoggerByEntry(logrus.NewEntry(log)), storage, cfg)
 	ts := httptest.NewServer(s.Router)
 	defer ts.Close()
 
@@ -393,9 +390,7 @@ func TestOrdersGet(t *testing.T) {
 	log := logrus.New()
 	log.Out = io.Discard
 
-	p := poller.TestPoller(t, storage)
-
-	s := server.New(logger.GetLoggerByEntry(logrus.NewEntry(log)), storage, cfg, p)
+	s := server.New(logger.GetLoggerByEntry(logrus.NewEntry(log)), storage, cfg)
 	ts := httptest.NewServer(s.Router)
 	defer ts.Close()
 
@@ -556,9 +551,7 @@ func TestWithdrawsPost(t *testing.T) {
 	log := logrus.New()
 	log.Out = io.Discard
 
-	p := poller.TestPoller(t, storage)
-
-	s := server.New(logger.GetLoggerByEntry(logrus.NewEntry(log)), storage, cfg, p)
+	s := server.New(logger.GetLoggerByEntry(logrus.NewEntry(log)), storage, cfg)
 	ts := httptest.NewServer(s.Router)
 	defer ts.Close()
 
@@ -718,7 +711,7 @@ func TestAuth(t *testing.T) {
 
 	log := logrus.New()
 	log.Out = io.Discard
-	s := server.New(logger.GetLoggerByEntry(logrus.NewEntry(log)), storage, cfg, nil)
+	s := server.New(logger.GetLoggerByEntry(logrus.NewEntry(log)), storage, cfg)
 	ts := httptest.NewServer(s.Router)
 
 	for _, tt := range tests {

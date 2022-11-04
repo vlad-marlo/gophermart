@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
-	"github.com/vlad-marlo/gophermart/internal/store"
 	"github.com/vlad-marlo/gophermart/pkg/logger"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/vlad-marlo/gophermart/internal/config"
 	"github.com/vlad-marlo/gophermart/internal/poller"
@@ -15,7 +15,7 @@ import (
 	"github.com/vlad-marlo/gophermart/internal/store/sqlstore"
 )
 
-const pollerQueueLimit = 30
+const pollInterval = 10 * time.Second
 
 func main() {
 	ctx := context.Background()
@@ -34,28 +34,21 @@ func main() {
 	if err != nil {
 		log.Panicf("new sql store: %v", err)
 	}
+	defer storage.Close()
 
-	p := poller.New(log, storage, cfg, pollerQueueLimit)
-	s := server.New(log, storage, cfg, p)
-
-	defer tearDown(log, storage, p)
+	p := poller.New(log, storage, cfg, pollInterval)
+	defer p.Close()
+	s := server.New(log, storage, cfg)
 
 	go func() {
 		if err := http.ListenAndServe(cfg.BindAddr, s.Router); err != nil {
 			log.Panicf("start server: %v", err)
 		}
 	}()
-}
-
-func tearDown(logger logger.Logger, store store.Storage, p poller.OrderPoller) {
-	// creating interrupt chan for accepting os signals for graceful shut down
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM, syscall.SIGINT, syscall.SIGSEGV)
 
 	sig := <-interrupt
 
-	p.Close()
-	store.Close()
-
-	logger.WithField("signal", sig.String()).Info("graceful shut down")
+	log.WithField("signal", sig.String()).Info("graceful shut down")
 }

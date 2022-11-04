@@ -9,54 +9,45 @@ import (
 )
 
 // pollWork ...
-func (s *Poller) pollWork(poller int, t *task) {
+func (s *OrderPoller) pollWork(o *model.OrderInPoll) {
 	ctx := context.Background()
 
 	l := s.logger.WithFields(map[string]interface{}{
-		"request_id": t.ReqID,
-		"poll":       poller,
+		"user":  o.User,
+		"order": o.Number,
 	})
 
-	o, err := s.GetOrderFromAccrual(t.ReqID, t.ID)
+	order, err := s.GetOrderFromAccrual(o.Number)
 	if err != nil {
 		if errors.Is(err, ErrTooManyRequests) || errors.Is(err, ErrInternal) {
 			l.Trace(fmt.Sprintf("pushing order back to queue: got bad status: %v", err))
 			time.Sleep(10 * time.Second)
-			s.queue <- t
 		}
 		if errors.Is(err, ErrNotFound) || errors.Is(err, ErrNoContent) {
 			l.Trace("order was not found in accrual system: deleting order")
-			if err := s.store.Order().Delete(ctx, t.User, t.ID); err != nil {
-				s.logger.Error(fmt.Sprintf("delete order: %v", err))
-			}
 		}
 		return
 	}
 
-	l.Trace(fmt.Sprintf("got order from accrual Order{Status: %s, Accrual: %f, Number: %d}", o.Status, o.Accrual, o.Number))
+	l.Trace(fmt.Sprintf("got order from accrual Order{Status: %s, Accrual: %f, Number: %d}", order.Status, order.Accrual, order.Number))
 	switch o.Status {
 	case model.StatusProcessing:
-		if err := s.store.Order().ChangeStatus(ctx, t.User, o); err != nil {
+		if err := s.store.Order().ChangeStatus(ctx, o.User, order); err != nil {
 			l.Warnf("change status: %v", err)
 		}
-		s.queue <- &task{t.ID, t.User, t.ReqID}
 	case "REGISTERED":
-		s.queue <- t
 	case model.StatusInvalid:
-		if err := s.store.Order().ChangeStatus(ctx, t.User, o); err != nil {
-			s.queue <- &task{t.ID, t.User, t.ReqID}
+		if err := s.store.Order().ChangeStatus(ctx, o.User, order); err != nil {
 			l.Warnf("change status: %v", err)
 		}
 	case model.StatusProcessed:
-		if o.Accrual > 0.0 {
-			if err := s.store.Order().ChangeStatusAndIncrementUserBalance(ctx, t.User, o); err != nil {
-				s.queue <- &task{t.ID, t.User, t.ReqID}
+		if order.Accrual > 0.0 {
+			if err := s.store.Order().ChangeStatusAndIncrementUserBalance(ctx, o.User, order); err != nil {
 				return
 			}
 			l.Trace("successful changed status to processed and incremented user balance")
 			return
-		} else if err := s.store.Order().ChangeStatus(ctx, t.User, o); err != nil {
-			s.queue <- &task{t.ID, t.User, t.ReqID}
+		} else if err := s.store.Order().ChangeStatus(ctx, o.User, order); err != nil {
 			l.Warnf("change status: %v", err)
 			return
 		}

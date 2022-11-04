@@ -1,8 +1,6 @@
 package server
 
 import (
-	"github.com/vlad-marlo/gophermart/internal/poller"
-
 	"github.com/vlad-marlo/gophermart/pkg/logger"
 	"github.com/vlad-marlo/gophermart/pkg/middlewares"
 
@@ -18,17 +16,15 @@ type Server struct {
 	logger logger.Logger
 	// don't sure that config is necessary in Server struct
 	config *config.Config
-	poller poller.OrderPoller
 }
 
 // New ...
-func New(l logger.Logger, store store.Storage, config *config.Config, p poller.OrderPoller) *Server {
+func New(l logger.Logger, store store.Storage, config *config.Config) *Server {
 	s := &Server{
 		store:  store,
 		config: config,
 		Router: chi.NewMux(),
 		logger: l,
-		poller: p,
 	}
 
 	s.configureMiddlewares()

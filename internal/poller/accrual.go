@@ -3,17 +3,38 @@ package poller
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/go-resty/resty/v2"
 	"github.com/vlad-marlo/gophermart/internal/model"
 	"net/http"
+	"strconv"
+	"time"
 )
 
-// GetOrderFromAccrual ...
-func (s *Poller) GetOrderFromAccrual(reqID string, number int) (o *model.OrderInAccrual, err error) {
+// retryFunc ...
+func retryFunc(_ *resty.Client, response *resty.Response) (time.Duration, error) {
+	if response.StatusCode() != http.StatusTooManyRequests {
+		return 0, nil
+	}
 
-	l := s.logger.WithField("request_id", reqID)
+	retryAfterValue := response.Header().Get("retry-after")
+	if len(retryAfterValue) == 0 {
+		return 0, nil
+	}
+
+	seconds, err := strconv.Atoi(retryAfterValue)
+	if err != nil {
+		return 0, err
+	}
+	return time.Duration(seconds) * time.Second, nil
+}
+
+// GetOrderFromAccrual ...
+func (s *OrderPoller) GetOrderFromAccrual(number int) (o *model.OrderInAccrual, err error) {
+
+	l := s.logger
 	o = new(model.OrderInAccrual)
 
-	endpoint := fmt.Sprintf("http://%s/api/orders/%d", s.config.AccuralSystemAddress, number)
+	endpoint := fmt.Sprintf("%s/api/orders/%d", s.config.AccuralSystemAddress, number)
 	l.Tracef("request to %s", endpoint)
 
 	response, err := s.client.R().Get(endpoint)

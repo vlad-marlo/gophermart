@@ -3,7 +3,6 @@ package sqlstore_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/vlad-marlo/gophermart/internal/model"
@@ -400,37 +399,5 @@ func TestOrderRepository_GetUnprocessedOrders(t *testing.T) {
 				require.False(t, tc.wantInGet, "doesn't exist in unprocessed orders")
 			}
 		})
-	}
-}
-
-func TestOrderRepository_DeleteOK(t *testing.T) {
-	if conStr == "" {
-		t.Skip("connect string is not provided")
-	}
-	ctx := context.Background()
-	ts, teardown := sqlstore.TestStore(t, conStr)
-	defer teardown(userTableName, ordersTableName)
-	u := model.TestUser(t, userLogin1)
-	err := ts.User().Create(ctx, u)
-	require.NoError(t, err, fmt.Sprintf("create user: %v", err))
-
-	orders := []int{
-		orderNum1,
-		orderNum2,
-		orderNum3,
-		orderNum4,
-	}
-	for _, o := range orders {
-		err = ts.Order().Register(ctx, u.ID, o)
-		require.NoError(t, err, fmt.Sprintf("register order: %v", err))
-
-		err = ts.Order().Register(ctx, u.ID, o)
-		require.Error(t, err, "got no error while register order in second time")
-
-		err = ts.Order().Delete(ctx, u.ID, o)
-		require.NoError(t, err, fmt.Sprintf("delete order: %v", err))
-
-		err = ts.Order().Register(ctx, u.ID, o)
-		require.NoError(t, err, fmt.Sprintf("register order after deliting: %v", err))
 	}
 }

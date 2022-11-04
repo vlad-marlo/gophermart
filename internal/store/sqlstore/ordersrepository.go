@@ -227,18 +227,3 @@ func (o *orderRepository) ChangeStatusAndIncrementUserBalance(ctx context.Contex
 
 	return nil
 }
-
-func (o *orderRepository) Delete(ctx context.Context, user int, number int) error {
-	q := `
-	DELETE FROM 
-		orders
-	WHERE
-	    user_id = $1 AND id = $2;
-	`
-	q = debugQuery(q)
-
-	if _, err := o.s.db.Exec(ctx, q, user, number); err != nil {
-		return pgError("delete order: %w", err)
-	}
-	return nil
-}

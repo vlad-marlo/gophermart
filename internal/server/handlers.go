@@ -151,7 +151,7 @@ func (s *Server) handleOrdersPost() http.HandlerFunc {
 			return
 		}
 
-		if err := s.poller.Register(r.Context(), u, num); err != nil {
+		if err := s.store.Order().Register(r.Context(), u, num); err != nil {
 			switch {
 			case errors.Is(err, store.ErrAlreadyRegisteredByAnotherUser):
 				s.error(w, err, fields, http.StatusConflict)
@@ -190,11 +190,12 @@ func (s *Server) handleOrdersGet() http.HandlerFunc {
 
 		orders, err = s.store.Order().GetAllByUser(r.Context(), u)
 		if err != nil {
-			if errors.Is(err, store.ErrNoContent) {
+			switch {
+			case errors.Is(err, store.ErrNoContent):
 				s.error(w, err, fields, http.StatusNoContent)
-				return
+			default:
+				s.error(w, err, fields, http.StatusInternalServerError)
 			}
-			s.error(w, err, fields, http.StatusInternalServerError)
 			return
 		}
 
@@ -306,6 +307,10 @@ func (s *Server) handleWithdrawsPost() http.HandlerFunc {
 		l := s.logger.WithFields(fields)
 
 		u, err := GetUserIDFromRequest(r)
+		if err != nil {
+			s.error(w, err, fields, http.StatusUnauthorized)
+			return
+		}
 
 		defer func() {
 			if err := r.Body.Close(); err != nil {
