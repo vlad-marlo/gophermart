@@ -56,7 +56,7 @@ func (s *Server) configureRoutes() {
 			r.Post("/orders", s.handleOrdersPost())
 			r.Get("/orders", s.handleOrdersGet())
 			r.Get("/balance", s.handleBalanceGet())
-			r.Post("/balance/withdraw", s.handleBalanceWithdrawPost())
+			r.Post("/balance/withdraw", s.handleWithdrawsPost())
 			r.Get("/balance/withdrawals", s.handleGetAllWithdraws())
 		})
 	})

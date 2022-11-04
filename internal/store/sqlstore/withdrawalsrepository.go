@@ -19,12 +19,11 @@ func (r *withdrawRepository) Migrate(ctx context.Context) error {
 			id BIGSERIAL UNIQUE PRIMARY KEY,
 			processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			user_id BIGINT,
-			order_id BIGINT UNIQUE,
+			order_id BIGINT,
 			order_sum DOUBLE PRECISION DEFAULT 0::DOUBLE PRECISION,
 
 			FOREIGN KEY (user_id) REFERENCES users(id)
-		);
--- 			FOREIGN KEY (order_id) REFERENCES orders(id),`)
+		);`)
 
 	if _, err := r.s.db.Exec(ctx, q); err != nil {
 		return pgError("query: %w", err)
@@ -85,7 +84,6 @@ func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Wi
 			r.s.logger.WithFields(map[string]interface{}{
 				"request_id": middleware.GetReqID(ctx),
 			}).Fatal(pgError("unable to update drivers: %w", err))
-			return
 		}
 	}()
 

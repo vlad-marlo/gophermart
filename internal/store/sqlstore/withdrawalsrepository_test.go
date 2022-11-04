@@ -10,6 +10,7 @@ import (
 	"github.com/vlad-marlo/gophermart/internal/store"
 	"github.com/vlad-marlo/gophermart/internal/store/sqlstore"
 	"github.com/vlad-marlo/gophermart/pkg/logger"
+	"github.com/vlad-marlo/gophermart/pkg/luhn"
 	"testing"
 )
 
@@ -138,6 +139,7 @@ func TestWithdrawalsRepository_GetAllByUser(t *testing.T) {
 	tests := []struct {
 		name     string
 		sum      float64
+		order    int
 		user     *model.User
 		anotherU *model.User
 		wantErr  error
@@ -145,6 +147,7 @@ func TestWithdrawalsRepository_GetAllByUser(t *testing.T) {
 		{
 			"positive case #1",
 			123.212123,
+			orderNum1,
 			u1,
 			u2,
 			nil,
@@ -152,6 +155,7 @@ func TestWithdrawalsRepository_GetAllByUser(t *testing.T) {
 		{
 			"positive case #2",
 			1231231.232,
+			orderNum2,
 			u1,
 			u2,
 			nil,
@@ -159,54 +163,44 @@ func TestWithdrawalsRepository_GetAllByUser(t *testing.T) {
 		{
 			"positive case #3",
 			2.002,
+			orderNum3,
 			u2,
 			u1,
 			nil,
-		},
-		{
-			"negative case #1 - registered by user",
-			123123.12,
-			u1,
-			u2,
-			store.ErrAlreadyRegisteredByUser,
-		},
-		{
-			"negative case #1 - registered by another user",
-			123123.123,
-			u2,
-			u1,
-			store.ErrAlreadyRegisteredByAnotherUser,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err = s.User().IncrementBalance(ctx, tt.user.ID, tt.sum)
+			bal, err := s.User().GetBalance(ctx, tt.user.ID)
+			t.Logf("withdraw=%f, got=%f, u=%d", tt.sum, bal.Current, tt.user.ID)
+			require.NoError(t, err)
 			require.NoErrorf(t, err, "increment user balance: %w", err)
-			err = s.Withdraws().Withdraw(ctx, tt.user.ID, model.TestWithdraw(t, orderNum, tt.sum))
-			if tt.user == u1 {
+			err = s.Withdraws().Withdraw(ctx, tt.user.ID, model.TestWithdraw(t, tt.order, tt.sum))
+			if luhn.Valid(tt.order) {
 				require.NoError(t, err)
 			} else {
-				require.ErrorIs(t, err, store.ErrAlreadyRegisteredByAnotherUser)
+				require.ErrorIs(t, store.ErrIncorrectData, err)
 				return
 			}
 			// check order exists in user orders
 			{
-				orders, err := s.Withdraws().GetAllByUser(ctx, tt.user.ID)
-				require.NoError(t, err, "get all orders by user: %sum", err)
+				withdraws, err := s.Withdraws().GetAllByUser(ctx, tt.user.ID)
+				require.NoError(t, err, "get all withdraws by user: %s", err)
 				status := false
-				for _, o := range orders {
+				for _, o := range withdraws {
 					if o.Sum == tt.sum {
 						status = true
 					}
 				}
-				require.True(t, status, "not found order in registered orders by user")
+				require.True(t, status, "not found withdraw in registered orders by user")
 			}
 			// check order doesn't exist in different user's orders
 			{
 				orders, err := s.Withdraws().GetAllByUser(ctx, tt.anotherU.ID)
 				if err != nil && !errors.Is(err, store.ErrNoContent) {
-					require.NoErrorf(t, err, "got unexpected error: %sum", err)
+					require.NoErrorf(t, err, "got unexpected error: %s", err)
 				}
 
 				status := false
