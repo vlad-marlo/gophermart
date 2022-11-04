@@ -3,8 +3,8 @@ package poller
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/go-resty/resty/v2"
 	"github.com/vlad-marlo/gophermart/internal/model"
-	"io"
 	"net/http"
 )
 
@@ -16,20 +16,12 @@ func (s *Poller) GetOrderFromAccrual(reqID string, number int) (o *model.OrderIn
 	endpoint := fmt.Sprintf("http://%s/api/orders/%d", s.config.AccuralSystemAddress, number)
 	l.Tracef("request to %s", endpoint)
 
-	response, err := http.Get(endpoint)
+	response, err := resty.New().R().Get(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("http get: %w ", err)
 	}
-	defer func() {
-		if _, err := io.Copy(io.Discard, response.Body); err != nil {
-			l.Warnf("io copy: %v", err)
-		}
-		if err := response.Body.Close(); err != nil {
-			l.Warnf("get order form accrual: response body close: %v", err)
-		}
-	}()
 
-	switch response.StatusCode {
+	switch response.StatusCode() {
 	case http.StatusTooManyRequests:
 		return nil, ErrTooManyRequests
 	case http.StatusInternalServerError:
@@ -41,12 +33,7 @@ func (s *Poller) GetOrderFromAccrual(reqID string, number int) (o *model.OrderIn
 	default:
 	}
 
-	data, err := io.ReadAll(response.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read body: %w", err)
-	}
-
-	if err := json.Unmarshal(data, &o); err != nil {
+	if err := json.Unmarshal(response.Body(), &o); err != nil {
 		return nil, fmt.Errorf("json unmarshal: %w", err)
 	}
 

@@ -7,6 +7,7 @@ import (
 	"github.com/vlad-marlo/gophermart/internal/config"
 	"github.com/vlad-marlo/gophermart/internal/store"
 	"github.com/vlad-marlo/gophermart/pkg/logger"
+	"time"
 )
 
 type (
@@ -37,16 +38,22 @@ func New(l logger.Logger, s store.Storage, cfg *config.Config, limit int) OrderP
 	}
 	p.startPolling()
 	go func() {
-		orders, err := p.store.Order().GetUnprocessedOrders(context.Background())
-		if err != nil {
-			l.Errorf("get unprocessed orders: %v", err)
-			return
-		}
-		for _, order := range orders {
-			p.queue <- &task{
-				ID:    order.Number,
-				User:  order.User,
-				ReqID: "init poller",
+		t := time.NewTicker(2 * time.Minute)
+		for {
+			select {
+			case <-t.C:
+				orders, err := p.store.Order().GetUnprocessedOrders(context.Background())
+				if err != nil {
+					l.Errorf("get unprocessed orders: %v", err)
+					return
+				}
+				for _, order := range orders {
+					p.queue <- &task{
+						ID:    order.Number,
+						User:  order.User,
+						ReqID: "init poller",
+					}
+				}
 			}
 		}
 	}()

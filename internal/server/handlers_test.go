@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -20,7 +19,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 )
 
@@ -134,8 +132,8 @@ func TestAuthUserRegister_MainCases(t *testing.T) {
 			data, err := tt.request()
 			require.NoErrorf(t, err, "json marshal: %w", err)
 
-			resp, _ := testRequest(t, ts, http.MethodPost, userRegisterPath, bytes.NewReader(data), nil)
-			assert.Equalf(t, tt.code, resp.StatusCode, "status codes are not equal: got %d: want %d", resp.StatusCode, tt.code)
+			resp, _ := testRequest(t, ts, http.MethodPost, userRegisterPath, data, nil)
+			assert.Equalf(t, tt.code, resp.StatusCode(), "status codes are not equal: got %d: want %d", resp.StatusCode(), tt.code)
 		})
 	}
 }
@@ -176,16 +174,16 @@ func TestAuthUserRegister_CheckAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			data, err := json.Marshal(tt.request())
 			require.NoErrorf(t, err, "json marshal: %w", err)
-			resp, _ := testRequest(t, ts, http.MethodPost, userRegisterPath, bytes.NewReader(data), nil)
-			assert.Equalf(t, http.StatusOK, resp.StatusCode, "status codes are not equal: got %d: want %d", resp.StatusCode, 200)
+			resp, _ := testRequest(t, ts, http.MethodPost, userRegisterPath, data, nil)
+			assert.Equalf(t, http.StatusOK, resp.StatusCode(), "status codes are not equal: got %d: want %d", resp.StatusCode(), 200)
 			cookies := resp.Cookies()
 
 			resp, _ = testRequest(t, ts, http.MethodGet, userBalancePath, nil, cookies)
-			require.NotEqual(t, resp.StatusCode, http.StatusUnauthorized, "status code is 401")
+			require.NotEqual(t, resp.StatusCode(), http.StatusUnauthorized, "status code is 401")
 
 			// check that cookies was necessary to auth
 			resp, _ = testRequest(t, ts, http.MethodGet, userBalancePath, nil, nil)
-			require.Equal(t, resp.StatusCode, http.StatusUnauthorized, "status code is 401")
+			require.Equal(t, resp.StatusCode(), http.StatusUnauthorized, fmt.Sprintf("status code is not 401 got=%d", resp.StatusCode()))
 		})
 	}
 }
@@ -194,6 +192,7 @@ func TestAuthUserLogin(t *testing.T) {
 	if conStr == "" {
 		t.Skip("connect string is not provided")
 	}
+
 	ctx := context.Background()
 
 	type (
@@ -208,6 +207,7 @@ func TestAuthUserLogin(t *testing.T) {
 			Password string `json:"password"`
 		}
 	)
+
 	u := &model.User{
 		Login:    userLogin1,
 		Password: userPassword,
@@ -262,7 +262,7 @@ func TestAuthUserLogin(t *testing.T) {
 		{
 			name: "negative case #5: bad request no auth data",
 			request: func() ([]byte, error) {
-				return nil, nil
+				return []byte{}, nil
 			},
 			code: http.StatusBadRequest,
 		},
@@ -283,22 +283,16 @@ func TestAuthUserLogin(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			data, err := tt.request()
 			require.NoErrorf(t, err, "json marshal: %w", err)
-			var reader io.Reader
-			if data != nil {
-				reader = bytes.NewReader(data)
-			} else {
-				reader = nil
-			}
 			// doing first request
-			resp, _ := testRequest(t, ts, http.MethodPost, userLoginPath, reader, nil)
-			require.Equalf(t, tt.code, resp.StatusCode, "want=%d actual=%d", tt.code, resp.StatusCode)
+			resp, _ := testRequest(t, ts, http.MethodPost, userLoginPath, data, nil)
+			require.Equalf(t, tt.code, resp.StatusCode(), "want=%d actual=%d", tt.code, resp.StatusCode())
 
 			cookies := resp.Cookies()
 			resp, _ = testRequest(t, ts, http.MethodGet, userBalancePath, nil, cookies)
 			if tt.code != http.StatusOK {
-				require.Equal(t, http.StatusUnauthorized, resp.StatusCode, "status code is 401")
+				require.Equal(t, http.StatusUnauthorized, resp.StatusCode(), "status code is 401")
 			} else {
-				require.NotEqual(t, http.StatusUnauthorized, resp.StatusCode, "status code is not 401 got %d", resp.StatusCode)
+				require.NotEqual(t, http.StatusUnauthorized, resp.StatusCode(), fmt.Sprintf("status code is not 401 got %d", resp.StatusCode()))
 			}
 		})
 	}
@@ -375,11 +369,11 @@ func TestOrdersPost(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, _ := testRequest(t, ts, http.MethodPost, userOrdersPath, strings.NewReader(fmt.Sprint(tt.request)), tt.cookies)
+			resp, _ := testRequest(t, ts, http.MethodPost, userOrdersPath, []byte(fmt.Sprint(tt.request)), tt.cookies)
 			if tt.code != 0 {
-				require.Equal(t, tt.code, resp.StatusCode, fmt.Sprintf("got unexpected status code want=%d got=%d", tt.code, resp.StatusCode))
+				require.Equal(t, tt.code, resp.StatusCode(), fmt.Sprintf("got unexpected status code want=%d got=%d", tt.code, resp.StatusCode()))
 			} else if luhn.Valid(tt.request) {
-				require.NotEqual(t, http.StatusUnprocessableEntity, resp.StatusCode, fmt.Sprintf("got unexpected status code: %d", resp.StatusCode))
+				require.NotEqual(t, http.StatusUnprocessableEntity, resp.StatusCode(), fmt.Sprintf("got unexpected status code: %d", resp.StatusCode()))
 			}
 		})
 	}
@@ -447,6 +441,7 @@ func TestOrdersGet(t *testing.T) {
 			otherU: u2,
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var cookies, otherCookies []*http.Cookie
@@ -457,8 +452,8 @@ func TestOrdersGet(t *testing.T) {
 				cookies = cookiesU2
 				otherCookies = cookiesU1
 			}
-			resp, _ := testRequest(t, ts, http.MethodPost, userOrdersPath, strings.NewReader(fmt.Sprint(tt.o)), cookies)
-			require.True(t, http.StatusAccepted == resp.StatusCode || resp.StatusCode == http.StatusOK, fmt.Sprintf("got unexpected status code want=200/202 got=%d", resp.StatusCode))
+			resp, _ := testRequest(t, ts, http.MethodPost, userOrdersPath, []byte(fmt.Sprint(tt.o)), cookies)
+			require.True(t, http.StatusAccepted == resp.StatusCode() || resp.StatusCode() == http.StatusOK, fmt.Sprintf("got unexpected status code want=200/202 got=%d", resp.StatusCode()))
 			// check exist in storage
 			{
 				// check order exists in user orders
@@ -498,11 +493,11 @@ func TestOrdersGet(t *testing.T) {
 					resp, body := testRequest(t, ts, http.MethodGet, userOrdersPath, nil, cookies)
 					assert.Contains(
 						t,
-						resp.Header.Get("content-type"),
+						resp.Header().Get("content-type"),
 						"application/json",
-						fmt.Sprintf("bad header %v doesn't containt %s", resp.Header.Get("content-type"), "application/json"),
+						fmt.Sprintf("bad header %v doesn't containt %s", resp.Header().Get("content-type"), "application/json"),
 					)
-					assert.Equal(t, resp.StatusCode, http.StatusOK, fmt.Sprintf("bad status code want=200 got %d", resp.StatusCode))
+					assert.Equal(t, resp.StatusCode(), http.StatusOK, fmt.Sprintf("bad status code want=200 got %d", resp.StatusCode()))
 
 					var orders []*model.Order
 					err := json.Unmarshal(body, &orders)
@@ -518,17 +513,17 @@ func TestOrdersGet(t *testing.T) {
 				// check doesn't contain in other user
 				{
 					resp, body := testRequest(t, ts, http.MethodGet, userOrdersPath, nil, otherCookies)
-					if resp.StatusCode != http.StatusNoContent {
+					if resp.StatusCode() != http.StatusNoContent {
 						assert.Contains(
 							t,
-							resp.Header["content-type"],
+							resp.Header().Get("content-type"),
 							"application/json",
-							fmt.Sprintf("bad header %+v doesn't containt %s", resp.Header["content-type"], "application/json"),
+							fmt.Sprintf("bad header %+v doesn't containt %s", resp.Header().Get("content-type"), "application/json"),
 						)
 					}
-					assert.True(t, resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNoContent, fmt.Sprintf("bad status code want=200/204 got %d", resp.StatusCode))
+					assert.True(t, resp.StatusCode() == http.StatusOK || resp.StatusCode() == http.StatusNoContent, fmt.Sprintf("bad status code want=200/204 got %d", resp.StatusCode()))
 
-					if resp.StatusCode == http.StatusNoContent {
+					if resp.StatusCode() == http.StatusNoContent {
 						return
 					}
 					var orders []*model.Order
@@ -583,7 +578,7 @@ func TestWithdrawsPost(t *testing.T) {
 	u2 := &model.User{Login: userLogin2, Password: userPassword}
 	require.NoError(t, err, fmt.Sprintf("got unexpected error while creating user: %v", err))
 	u2.Password = userPassword
-	//cookiesU2 := getUserCookies(t, ts, u2)
+	cookiesU2 := getUserCookies(t, ts, u2)
 	u2, err = storage.User().GetByLogin(ctx, u2.Login)
 	require.NoError(t, err, fmt.Sprintf("get user by login: %v", err))
 
@@ -591,12 +586,13 @@ func TestWithdrawsPost(t *testing.T) {
 	require.NoError(t, err, "got unexpected error: %v", err)
 
 	type want struct {
-		status int
+		status          int
+		otherUserStatus int
 	}
 	type args struct {
-		order   int
-		sum     float64
-		cookies []*http.Cookie
+		order int
+		sum   float64
+		u     *model.User
 	}
 
 	tests := []struct {
@@ -608,23 +604,122 @@ func TestWithdrawsPost(t *testing.T) {
 		{
 			name: "positive case #1",
 			args: args{
-				cookies: cookiesU1,
-				order:   validOrderNum1,
-				sum:     123.0,
+				u:     u1,
+				order: validOrderNum1,
+				sum:   123.0,
 			},
 			want: want{
-				status: http.StatusOK,
+				status:          http.StatusOK,
+				otherUserStatus: http.StatusConflict,
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var body io.Reader
-			resp, _ := testRequest(t, ts, http.MethodPost, userWithdrawPath, body, tt.args.cookies)
-			defer require.NoError(t, resp.Body.Close())
-			require.Equal(t, resp.StatusCode, http.StatusOK)
+			var cookies, otherCookies []*http.Cookie
+			if tt.args.u == u1 {
+				cookies = cookiesU1
+				otherCookies = cookiesU2
+			} else {
+				cookies = cookiesU2
+				otherCookies = cookiesU2
+			}
+
+			var body []byte
+			w := &model.Withdraw{Order: tt.args.order, Sum: tt.args.sum}
+			body, err = json.Marshal(w)
+
+			resp, _ := testRequest(t, ts, http.MethodPost, userWithdrawPath, body, cookies)
+			require.Equal(t, tt.want.status, resp.StatusCode)
+
+			if tt.want.status == http.StatusOK {
+				orders, err := storage.Withdraws().GetAllByUser(ctx, tt.args.u.ID)
+				require.NoError(t, err, fmt.Sprintf("got unexpected error while getting all withdrawals by user: %v", err))
+
+				status := false
+				for _, o := range orders {
+					if o.Order == tt.args.order && o.Sum == tt.args.sum {
+						status = false
+					}
+				}
+				require.True(t, status, "got bad status")
+			} else if tt.want.status == http.StatusConflict {
+
+			}
+
+			resp, _ = testRequest(t, ts, http.MethodPost, userWithdrawPath, body, otherCookies)
+			require.Equal(t, tt.want.otherUserStatus, resp.StatusCode)
 		})
 	}
+}
 
+func TestAuth(t *testing.T) {
+	if conStr == "" {
+		t.Skip("connect string was not provided")
+	}
+
+	tests := []struct {
+		name       string
+		path       string
+		method     string
+		wantAccess bool
+	}{
+		{
+			name:       "auth login",
+			path:       userLoginPath,
+			method:     http.MethodPost,
+			wantAccess: true,
+		},
+		{
+			name:       "auth register",
+			path:       userRegisterPath,
+			method:     http.MethodPost,
+			wantAccess: true,
+		},
+		{
+			name:       "orders post",
+			path:       userOrdersPath,
+			method:     http.MethodPost,
+			wantAccess: false,
+		},
+		{
+			name:       "orders get",
+			path:       userOrdersPath,
+			method:     http.MethodGet,
+			wantAccess: false,
+		},
+		{
+			name:       "withdraw",
+			path:       userWithdrawPath,
+			method:     http.MethodPost,
+			wantAccess: false,
+		},
+		{
+			name:       "withdrawals",
+			path:       userWithdrawalsPath,
+			method:     http.MethodGet,
+			wantAccess: false,
+		},
+	}
+	cfg := config.TestConfig(t)
+
+	storage, teardown := sqlstore.TestStore(t, conStr)
+	defer teardown(userTableName)
+
+	log := logrus.New()
+	log.Out = io.Discard
+	s := server.New(logger.GetLoggerByEntry(logrus.NewEntry(log)), storage, cfg, nil)
+	ts := httptest.NewServer(s.Router)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, _ := testRequest(t, ts, tt.method, tt.path, []byte{}, nil)
+			if tt.wantAccess {
+				assert.NotEqual(t, http.StatusUnauthorized, resp.StatusCode(), "unexpected got no access to endpoint")
+			} else {
+				assert.Equal(t, http.StatusUnauthorized, resp.StatusCode(), "unexpected")
+			}
+		})
+	}
 }

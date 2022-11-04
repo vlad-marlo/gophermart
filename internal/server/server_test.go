@@ -1,14 +1,13 @@
 package server_test
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/go-resty/resty/v2"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"github.com/vlad-marlo/gophermart/internal/model"
 	"github.com/vlad-marlo/gophermart/pkg/logger"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -24,12 +23,12 @@ var (
 	ordersTableName      = "orders"
 	withdrawalsTableName = "withdrawals"
 
-	userLoginPath    = "/api/user/login"
-	userBalancePath  = "/api/user/balance"
-	userRegisterPath = "/api/user/register"
-	userOrdersPath   = "/api/user/orders"
-	userWithdrawPath = "/api/user/balance/withdraw"
-	//userWithdrawalsPath = "/api/user/balance/withdrawals"
+	userLoginPath       = "/api/user/login"
+	userBalancePath     = "/api/user/balance"
+	userRegisterPath    = "/api/user/register"
+	userOrdersPath      = "/api/user/orders"
+	userWithdrawPath    = "/api/user/balance/withdraw"
+	userWithdrawalsPath = "/api/user/balance/withdrawals"
 
 	validOrderNum1 = 12345678904
 	validOrderNum2 = 4532733309529845
@@ -39,32 +38,35 @@ var (
 )
 
 // testRequest ...
-func testRequest(t *testing.T, ts *httptest.Server, method, path string, body io.Reader, cookies []*http.Cookie) (*http.Response, []byte) {
-	req, err := http.NewRequest(method, ts.URL+path, body)
-	require.NoError(t, err)
-	if cookies != nil {
-		for _, c := range cookies {
-			req.AddCookie(c)
-		}
+func testRequest(t *testing.T, ts *httptest.Server, method, path string, body []byte, cookies []*http.Cookie) (*resty.Response, []byte) {
+	var err error
+	client := resty.New()
+	r := client.R()
+	if body != nil && method == http.MethodPost {
+		r = r.SetBody(body)
 	}
-
-	resp, err := http.DefaultClient.Do(req)
+	if cookies != nil {
+		r = r.SetCookies(cookies)
+	}
+	var resp *resty.Response
+	switch method {
+	case http.MethodPost:
+		resp, err = r.Post(ts.URL + path)
+	case http.MethodGet:
+		resp, err = r.Get(ts.URL + path)
+	default:
+		t.Fatalf("got unexpected method: %s", method)
+	}
 	require.NoError(t, err)
 
-	respBody, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	err = resp.Body.Close()
-	require.NoErrorf(t, err, "close request body: %v", err)
-
-	return resp, respBody
+	return resp, resp.Body()
 }
 
 func getUserCookies(t *testing.T, ts *httptest.Server, u *model.User) []*http.Cookie {
 	data, err := json.Marshal(u)
 	//t.Logf("%s", data)
 	require.NoError(t, err, fmt.Sprintf("got unexpected err: %v", err))
-	resp, _ := testRequest(t, ts, http.MethodPost, userRegisterPath, bytes.NewReader(data), nil)
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	defer require.NoError(t, resp.Body.Close())
+	resp, _ := testRequest(t, ts, http.MethodPost, userRegisterPath, data, nil)
+	require.Equal(t, http.StatusOK, resp.StatusCode())
 	return resp.Cookies()
 }

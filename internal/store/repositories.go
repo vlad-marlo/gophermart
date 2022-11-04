@@ -47,6 +47,8 @@ type (
 		// ChangeStatusAndIncrementUserBalance is changing status of order with id m.Number to status m.Status and
 		// adding m.Accrual to user balance
 		ChangeStatusAndIncrementUserBalance(ctx context.Context, user int, m *model.OrderInAccrual) error
+		// Delete order with given user and number
+		Delete(ctx context.Context, user int, number int) error
 	}
 	WithdrawRepository interface {
 		// Migrate database to current scheme
