@@ -21,9 +21,10 @@ func (r *withdrawRepository) Migrate(ctx context.Context) error {
 			user_id BIGINT,
 			order_id BIGINT UNIQUE,
 			order_sum DOUBLE PRECISION DEFAULT 0::DOUBLE PRECISION,
--- 			FOREIGN KEY (order_id) REFERENCES orders(id),
+
 			FOREIGN KEY (user_id) REFERENCES users(id)
-		);`)
+		);
+-- 			FOREIGN KEY (order_id) REFERENCES orders(id),`)
 
 	if _, err := r.s.db.Exec(ctx, q); err != nil {
 		return pgError("query: %w", err)
