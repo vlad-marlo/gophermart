@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/vlad-marlo/gophermart/internal/model"
 	"github.com/vlad-marlo/gophermart/internal/store"
+	"github.com/vlad-marlo/gophermart/pkg/luhn"
 )
 
 type withdrawRepository struct {
@@ -18,9 +19,9 @@ func (r *withdrawRepository) Migrate(ctx context.Context) error {
 			id BIGSERIAL UNIQUE PRIMARY KEY,
 			processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			user_id BIGINT,
-			order_id BIGINT,
+			order_id BIGINT UNIQUE,
 			order_sum DOUBLE PRECISION DEFAULT 0::DOUBLE PRECISION,
-			FOREIGN KEY (order_id) REFERENCES orders(id),
+-- 			FOREIGN KEY (order_id) REFERENCES orders(id),
 			FOREIGN KEY (user_id) REFERENCES users(id)
 		);`)
 
@@ -31,6 +32,9 @@ func (r *withdrawRepository) Migrate(ctx context.Context) error {
 }
 
 func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Withdraw) error {
+	if !luhn.Valid(w.Order) {
+		return store.ErrIncorrectData
+	}
 	var bal float64
 	qGetBal := debugQuery(`
 	SELECT
@@ -49,16 +53,16 @@ func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Wi
 		id = $2;
 	`)
 
-	qOrderRegisteredByUser := debugQuery(`
-	SELECT EXISTS(
-		SELECT 
-		    *
-		FROM
-		    orders
-	    WHERE
-	        user_id = $1 AND id = $2
-	);
-	`)
+	//qOrderRegisteredByUser := debugQuery(`
+	//SELECT EXISTS(
+	//	SELECT
+	//	    *
+	//	FROM
+	//	    orders
+	//    WHERE
+	//        user_id = $1 AND id = $2
+	//);
+	//`)
 
 	qInsertWithdrawal := debugQuery(`
 	INSERT INTO
@@ -92,13 +96,13 @@ func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Wi
 		return store.ErrPaymentRequired
 	}
 
-	var ok bool
-	if err := tx.QueryRow(ctx, qOrderRegisteredByUser, user, w.Order).Scan(&ok); err != nil {
-		return pgError("check is order registered by user or not", err)
-	}
-	if !ok {
-		return store.ErrAlreadyRegisteredByAnotherUser
-	}
+	//var ok bool
+	//if err := tx.QueryRow(ctx, qOrderRegisteredByUser, user, w.Order).Scan(&ok); err != nil {
+	//	return pgError("check is order registered by user or not", err)
+	//}
+	//if !ok {
+	//	return store.ErrAlreadyRegisteredByAnotherUser
+	//}
 
 	if _, err := tx.Exec(ctx, qWithdraw, w.Sum, user); err != nil {
 		return pgError("withdraw balance: %w", err)

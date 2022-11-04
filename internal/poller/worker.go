@@ -20,6 +20,7 @@ func (s *Poller) pollWork(poller int, t *task) {
 	o, err := s.GetOrderFromAccrual(t.ReqID, t.ID)
 	if err != nil {
 		if errors.Is(err, ErrTooManyRequests) || errors.Is(err, ErrInternal) {
+			l.Trace(fmt.Sprintf("pushing order back to queue: got bad status: %v", err))
 			time.Sleep(10 * time.Second)
 			s.queue <- t
 		}

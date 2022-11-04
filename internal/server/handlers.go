@@ -302,6 +302,10 @@ func (s *Server) handleBalanceWithdrawPost() http.HandlerFunc {
 
 			case errors.Is(err, store.ErrNoContent):
 				status = http.StatusNoContent
+
+			case errors.Is(err, store.ErrIncorrectData):
+				status = http.StatusUnprocessableEntity
+
 			case errors.Is(err, store.ErrAlreadyRegisteredByAnotherUser):
 				status = http.StatusBadRequest
 
