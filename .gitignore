@@ -15,6 +15,7 @@
 cmd/gophermart/main
 cmd/gophermart/gophermart
 gophermart
+gophermarttest
 main
 
 # Dependency directories (remove the comment below to include it)
