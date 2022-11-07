@@ -11,14 +11,14 @@ import (
 type Config struct {
 	BindAddr             string `env:"RUN_ADDRESS" envDefault:":8000"`
 	DBURI                string `env:"DATABASE_URI"`
-	AccuralSystemAddress string `env:"ACCURAL_SYSTEM_ADDRESS" envDefault:"http://localhost:8080"`
+	AccuralSystemAddress string `env:"ACCRUAL_SYSTEM_ADDRESS" envDefault:"http://localhost:8080"`
 }
 
-func New() (*Config, error) {
-	c := &Config{}
+func New() (Config, error) {
+	c := Config{}
 
-	if err := env.Parse(c); err != nil {
-		return nil, fmt.Errorf("env parse: %v", err)
+	if err := env.Parse(&c); err != nil {
+		return Config{}, fmt.Errorf("env parse: %v", err)
 	}
 	// parse flags
 	flag.StringVar(&c.BindAddr, "a", c.BindAddr, "address to run HTTP server")
@@ -27,10 +27,10 @@ func New() (*Config, error) {
 	flag.Parse()
 
 	if len(c.DBURI) == 0 {
-		return nil, ErrEmptyDataBaseURI
+		return Config{}, ErrEmptyDataBaseURI
 	}
 	if len(c.AccuralSystemAddress) == 0 {
-		return nil, ErrEmptyDataBaseURI
+		return Config{}, ErrEmptyDataBaseURI
 	}
 	return c, nil
 }

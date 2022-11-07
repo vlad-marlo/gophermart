@@ -15,11 +15,11 @@ type Server struct {
 	store  store.Storage
 	logger logger.Logger
 	// don't sure that config is necessary in Server struct
-	config *config.Config
+	config config.Config
 }
 
 // New ...
-func New(l logger.Logger, store store.Storage, config *config.Config) *Server {
+func New(l logger.Logger, store store.Storage, config config.Config) *Server {
 	s := &Server{
 		store:  store,
 		config: config,

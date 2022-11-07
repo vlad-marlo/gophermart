@@ -22,7 +22,7 @@ type storage struct {
 }
 
 // New ...
-func New(ctx context.Context, l logger.Logger, c *config.Config) (store.Storage, error) {
+func New(ctx context.Context, l logger.Logger, c config.Config) (store.Storage, error) {
 	cfg, err := pgxpool.ParseConfig(c.DBURI)
 	if err != nil {
 		return nil, pgError("parse config: %v", err)

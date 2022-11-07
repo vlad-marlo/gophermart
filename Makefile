@@ -21,7 +21,7 @@ t:
                   -gophermart-database-uri="postgresql://marlo:819819@localhost:5432/gophermart_test?sslmode=disable" \
                   -accrual-binary-path=cmd/accrual/accrual_linux_amd64 \
                   -accrual-host=localhost \
-                  -accrual-port=8080 \
+                  -accrual-port=5000 \
                   -accrual-database-uri="postgresql://marlo:819819@localhost:5432/gophermart_test?sslmode=disable"
 
 
