@@ -363,8 +363,7 @@ func (s *Server) handleOrdersAccrualGet() http.HandlerFunc {
 			"request_id": middleware.GetReqID(r.Context()),
 		}
 
-		client := resty.New()
-		client.SetBaseURL(s.config.AccuralSystemAddress)
+		client := resty.New().SetBaseURL(s.config.AccuralSystemAddress)
 
 		req, err := client.R().Get(fmt.Sprintf("/api/orders/%s", num))
 
