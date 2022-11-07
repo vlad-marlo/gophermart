@@ -15,7 +15,7 @@ import (
 	"github.com/vlad-marlo/gophermart/internal/store/sqlstore"
 )
 
-const pollInterval = 1 * time.Second
+const pollInterval = 100 * time.Millisecond
 
 func main() {
 	ctx := context.Background()
