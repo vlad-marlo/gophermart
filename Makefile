@@ -13,17 +13,16 @@ test:
 
 .PHONY: t
 t:
-	build
 	./gophermarttest \
-                -test.v -test.run=^TestGophermart$ \
-                -gophermart-binary-path=cmd/gophermart/gophermart \
-                -gophermart-host=localhost \
-                -gophermart-port=8080 \
-                -gophermart-database-uri="postgresql://marlo:819819@localhost:5432/gophermart_test?sslmode=disable" \
-                -accrual-binary-path=cmd/accrual/accrual_linux_amd64 \
-                -accrual-host=localhost \
-                -accrual-port=8000 \
-                -accrual-database-uri="postgresql://marlo:819819@localhost:5432/gophermart_test?sslmode=disable"
+                  -test.v -test.run=^TestGophermart$ \
+                  -gophermart-binary-path=cmd/gophermart/gophermart \
+                  -gophermart-host=localhost \
+                  -gophermart-port=8000 \
+                  -gophermart-database-uri="postgresql://marlo:819819@localhost:5432/gophermart_test?sslmode=disable" \
+                  -accrual-binary-path=cmd/accrual/accrual_linux_amd64 \
+                  -accrual-host=localhost \
+                  -accrual-port=8080 \
+                  -accrual-database-uri="postgresql://marlo:819819@localhost:5432/gophermart_test?sslmode=disable"
 
 
 .DEFAULT_GOAL := build

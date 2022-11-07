@@ -4,16 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-resty/resty/v2"
 	"github.com/vlad-marlo/gophermart/internal/model"
 	"github.com/vlad-marlo/gophermart/internal/store"
 	"github.com/vlad-marlo/gophermart/pkg/luhn"
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 // handleAuthRegister ...
@@ -353,32 +350,5 @@ func (s *Server) handleWithdrawsPost() http.HandlerFunc {
 
 		w.Header().Set("content-type", "application/json")
 		w.WriteHeader(http.StatusOK)
-	}
-}
-
-func (s *Server) handleOrdersAccrualGet() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		num := chi.URLParam(r, "num")
-		fields := map[string]interface{}{
-			"request_id": middleware.GetReqID(r.Context()),
-		}
-
-		client := resty.New().SetBaseURL(s.config.AccuralSystemAddress)
-
-		req, err := client.R().Get(fmt.Sprintf("/api/orders/%s", num))
-
-		if err != nil {
-			if req != nil {
-				s.error(w, err, fields, req.StatusCode())
-				return
-			}
-			s.error(w, err, fields, http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(req.StatusCode())
-		for k, v := range req.Header() {
-			w.Header().Set(k, strings.Join(v, "; "))
-		}
-		_, _ = w.Write(req.Body())
 	}
 }

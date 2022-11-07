@@ -44,7 +44,6 @@ func (s *Server) configureMiddlewares() {
 
 // configureRoutes ...
 func (s *Server) configureRoutes() {
-	s.Get("/api/orders/{num}", s.handleOrdersAccrualGet())
 	s.Route("/api/user", func(r chi.Router) {
 		r.Post("/register", s.handleAuthRegister())
 		r.Post("/login", s.handleAuthLogin())
@@ -55,6 +54,7 @@ func (s *Server) configureRoutes() {
 			r.Get("/balance", s.handleBalanceGet())
 			r.Post("/balance/withdraw", s.handleWithdrawsPost())
 			r.Get("/balance/withdrawals", s.handleGetAllWithdraws())
+			r.Get("/withdrawals", s.handleGetAllWithdraws())
 		})
 	})
 }
