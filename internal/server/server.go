@@ -44,6 +44,7 @@ func (s *Server) configureMiddlewares() {
 
 // configureRoutes ...
 func (s *Server) configureRoutes() {
+	s.Get("/api/orders/{num}", s.handleOrdersAccrualGet())
 	s.Route("/api/user", func(r chi.Router) {
 		r.Post("/register", s.handleAuthRegister())
 		r.Post("/login", s.handleAuthLogin())

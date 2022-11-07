@@ -21,16 +21,17 @@ type (
 	}
 )
 
-func New(l logger.Logger, s store.Storage, cfg *config.Config, limit time.Duration) *OrderPoller {
+func New(l logger.Logger, s store.Storage, cfg *config.Config, interval time.Duration) *OrderPoller {
 	p := &OrderPoller{
 		queue:  make(chan struct{}),
 		store:  s,
 		logger: l,
 		config: cfg,
-		client: resty.New().SetRetryAfter(retryFunc).SetRetryCount(2),
+		client: resty.New().SetRetryAfter(retryFunc).SetRetryCount(3),
 	}
+
 	go func() {
-		t := time.NewTicker(limit)
+		t := time.NewTicker(interval)
 		for {
 			select {
 			case <-t.C:
