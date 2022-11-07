@@ -16,12 +16,12 @@ type (
 		queue  chan struct{}
 		store  store.Storage
 		logger logger.Logger
-		config config.Config
+		config *config.Config
 		client *resty.Client
 	}
 )
 
-func New(l logger.Logger, s store.Storage, cfg config.Config, interval time.Duration) *OrderPoller {
+func New(l logger.Logger, s store.Storage, cfg *config.Config, interval time.Duration) *OrderPoller {
 	p := &OrderPoller{
 		queue:  make(chan struct{}),
 		store:  s,
