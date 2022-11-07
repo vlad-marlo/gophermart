@@ -29,6 +29,9 @@ func New() (*Config, error) {
 	if len(c.DBURI) == 0 {
 		return nil, ErrEmptyDataBaseURI
 	}
+	if len(c.AccuralSystemAddress) == 0 {
+		return nil, ErrEmptyDataBaseURI
+	}
 	return c, nil
 }
 
