@@ -46,9 +46,9 @@ func (o *orderRepository) Migrate(ctx context.Context) error {
 
 func (o *orderRepository) Register(ctx context.Context, user, number int) error {
 	q := debugQuery(`
-	INSERT INTO 
+	INSERT INTO
 		orders(id, user_id)
-	VALUES 
+	VALUES
 		($1, $2);
 	`)
 
