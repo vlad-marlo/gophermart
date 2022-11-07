@@ -30,12 +30,13 @@ func (s *OrderPoller) pollWork(o *model.OrderInPoll) {
 	}
 
 	l.Trace(fmt.Sprintf("got order from accrual Order{Status: %s, Accrual: %f, Number: %d}", order.Status, order.Accrual, order.Number))
-	switch o.Status {
+	switch order.Status {
 	case model.StatusProcessing:
 		if err := s.store.Order().ChangeStatus(ctx, o.User, order); err != nil {
 			l.Warnf("change status: %v", err)
 		}
 	case "REGISTERED":
+	case model.StatusNew:
 	case model.StatusInvalid:
 		if err := s.store.Order().ChangeStatus(ctx, o.User, order); err != nil {
 			l.Warnf("change status: %v", err)
