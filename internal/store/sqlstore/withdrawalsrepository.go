@@ -21,7 +21,6 @@ func (r *withdrawRepository) Migrate(ctx context.Context) error {
 			user_id BIGINT,
 			order_id BIGINT,
 			order_sum DOUBLE PRECISION DEFAULT 0::DOUBLE PRECISION,
-
 			FOREIGN KEY (user_id) REFERENCES users(id)
 		);`)
 
@@ -53,17 +52,6 @@ func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Wi
 		id = $2;
 	`)
 
-	//qOrderRegisteredByUser := debugQuery(`
-	//SELECT EXISTS(
-	//	SELECT
-	//	    *
-	//	FROM
-	//	    orders
-	//    WHERE
-	//        user_id = $1 AND id = $2
-	//);
-	//`)
-
 	qInsertWithdrawal := debugQuery(`
 	INSERT INTO
 		withdrawals(
@@ -94,14 +82,6 @@ func (r *withdrawRepository) Withdraw(ctx context.Context, user int, w *model.Wi
 	if bal < w.Sum {
 		return store.ErrPaymentRequired
 	}
-
-	//var ok bool
-	//if err := tx.QueryRow(ctx, qOrderRegisteredByUser, user, w.Order).Scan(&ok); err != nil {
-	//	return pgError("check is order registered by user or not", err)
-	//}
-	//if !ok {
-	//	return store.ErrAlreadyRegisteredByAnotherUser
-	//}
 
 	if _, err := tx.Exec(ctx, qWithdraw, w.Sum, user); err != nil {
 		return pgError("withdraw balance: %w", err)
