@@ -9,9 +9,9 @@ import (
 )
 
 type Config struct {
-	BindAddr             string `env:"RUN_ADDRESS" envDefault:":8080"`
+	BindAddr             string `env:"RUN_ADDRESS" envDefault:":8000"`
 	DBURI                string `env:"DATABASE_URI"`
-	AccuralSystemAddress string `env:"ACCURAL_SYSTEM_ADDRESS" envDefault:"http://localhost:8000"`
+	AccuralSystemAddress string `env:"ACCURAL_SYSTEM_ADDRESS" envDefault:"http://localhost:8080"`
 }
 
 func New() (*Config, error) {
